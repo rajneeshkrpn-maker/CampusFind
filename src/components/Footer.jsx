@@ -4,7 +4,7 @@ import { Logo } from './Logo';
 import { MapPin, Phone, Mail, Heart, Clock } from 'lucide-react';
 
 export const Footer = () => {
-  const { setCurrentView, setShowSecurityHubsModal } = useApp();
+  const { setCurrentView, setShowSecurityHubsModal, setShowInquiryModal } = useApp();
 
   return (
     <footer className="bg-slate-900 text-stone-300 border-t border-slate-800 text-xs">
@@ -103,6 +103,14 @@ export const Footer = () => {
                 <span>campusfind@hitech.ac.in</span>
               </div>
             </div>
+
+            <button
+              onClick={() => setShowInquiryModal(true)}
+              className="w-full py-2 px-3 bg-stone-800 hover:bg-stone-700 text-orange-400 font-semibold rounded-lg border border-stone-700 transition-colors text-center text-[11px] flex items-center justify-center gap-1.5"
+            >
+              <span>Submit Help Desk Inquiry</span>
+              <span>✉️</span>
+            </button>
 
             <div className="pt-2">
               <span className="inline-block px-2.5 py-1 rounded bg-orange-600/20 text-orange-400 border border-orange-500/30 text-[10px] font-semibold">

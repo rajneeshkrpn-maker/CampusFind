@@ -6,6 +6,7 @@ import { ToastContainer } from './components/Toast';
 import { ItemDetailsModal } from './components/ItemDetailsModal';
 import { ClaimModal } from './components/ClaimModal';
 import { CampusMapModal } from './components/CampusMapModal';
+import { InquiryModal } from './components/InquiryModal';
 import { HomePage } from './pages/HomePage';
 import { BrowsePage } from './pages/BrowsePage';
 import { ReportLostPage } from './pages/ReportLostPage';
@@ -62,6 +63,7 @@ const AppContent = () => {
       <ItemDetailsModal />
       <ClaimModal />
       <CampusMapModal />
+      <InquiryModal />
 
       {/* Toast Feedback Notifications */}
       <ToastContainer />
