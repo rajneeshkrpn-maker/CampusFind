@@ -263,7 +263,7 @@ export const AuthPage = ({ initialMode = 'login' }) => {
         return;
       }
 
-      const { data, error: signUpError } = await signUpWithEmailPassword(cleanEmail, password, {
+      const signUpResult = await signUpWithEmailPassword(cleanEmail, password, {
         full_name: fullName.trim(),
         student_id: studentId.trim(),
         department: department.trim(),
@@ -271,12 +271,12 @@ export const AuthPage = ({ initialMode = 'login' }) => {
         role: 'student'
       });
 
-      if (signUpError) throw signUpError;
-
-      const authUser = data?.user;
-      if (!authUser) {
+      const authUser = signUpResult?.user || signUpResult?.data?.user;
+      if (!authUser?.id) {
         throw new Error('Could not create account. Please check your credentials.');
       }
+
+      console.log('Student account established in Supabase Auth:', authUser.id);
 
       let uploadedAvatarUrl = null;
       if (avatarFile && authUser.id) {
@@ -304,7 +304,7 @@ export const AuthPage = ({ initialMode = 'login' }) => {
       addToast(`Welcome to CampusFind, ${userProfile.name}! Verified account created.`, 'success');
       setCurrentView('dashboard');
     } catch (regErr) {
-      console.error('Registration error:', regErr);
+      console.error('Registration error:', regErr?.message || regErr);
       setError(
         regErr.message || 
         'Registration could not be completed. If "email rate limit" appears, disable "Confirm email" in Supabase Auth settings.'

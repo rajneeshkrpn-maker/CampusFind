@@ -171,8 +171,29 @@ export const AppProvider = ({ children }) => {
 
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
         setSession(newSession);
-        const profile = await fetchProfileByUserId(newSession.user.id) ||
-                        await fetchProfileByEmail(newSession.user.email);
+        let profile = await fetchProfileByUserId(newSession.user.id) ||
+                      await fetchProfileByEmail(newSession.user.email);
+
+        // Auto-provision profile from auth metadata if not yet created in public.profiles
+        if (!profile && newSession.user) {
+          const meta = newSession.user.user_metadata || {};
+          const fallbackStudentId = meta.student_id || `STU-${newSession.user.id.substring(0, 8).toUpperCase()}`;
+          const fallbackName = meta.full_name || newSession.user.email.split('@')[0];
+          profile = await upsertUserProfile({
+            userId: newSession.user.id,
+            studentId: fallbackStudentId,
+            fullName: fallbackName,
+            department: meta.department || 'Computer Science & Engineering',
+            academicYear: meta.academic_year || 'Student',
+            email: newSession.user.email,
+            avatarUrl: meta.avatar_url || null,
+            role: 'student'
+          }).catch((err) => {
+            console.warn('Could not auto-provision profile on auth change:', err?.message);
+            return null;
+          });
+        }
+
         if (isMounted) {
           if (profile) {
             setCurrentUser(profile);

@@ -577,10 +577,14 @@ export const signUpWithEmailPassword = async (email, password, metadata = {}) =>
   });
 
   if (error) {
-    console.error('Error in signUp:', error);
+    console.error('Error in signUp:', error?.message);
     throw error;
   }
-  return data;
+  return {
+    user: data?.user || null,
+    session: data?.session || null,
+    data: data
+  };
 };
 
 export const fetchProfileByUserId = async (userId) => {
