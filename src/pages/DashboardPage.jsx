@@ -20,6 +20,7 @@ import {
 export const DashboardPage = () => {
   const { 
     currentUser, 
+    setShowProfileModal,
     items, 
     claims, 
     campusIssues, 
@@ -34,27 +35,69 @@ export const DashboardPage = () => {
 
   const [activeTab, setActiveTab] = useState('lost'); // 'lost' | 'matches' | 'found' | 'claims' | 'issues'
 
-  // User's lost items
+  // If visitor is not authenticated, show sign-in gatekeeper
+  if (!currentUser) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-20 text-center space-y-6">
+        <div className="w-16 h-16 rounded-3xl bg-orange-100 border border-orange-200 text-orange-600 flex items-center justify-center mx-auto shadow-inner">
+          <ShieldCheck className="w-8 h-8" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">Student Recovery Dashboard</h2>
+          <p className="text-xs text-stone-500 max-w-md mx-auto leading-relaxed">
+            Please sign in with your verified college email to view your filed lost reports, track custody verification of found belongings, and check ownership claims.
+          </p>
+        </div>
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <button
+            onClick={() => setCurrentView('login')}
+            className="px-6 py-2.5 bg-white hover:bg-stone-50 border border-stone-200 text-slate-800 font-bold text-xs rounded-xl shadow-xs transition-colors"
+          >
+            Sign In to Account
+          </button>
+          <button
+            onClick={() => setCurrentView('register')}
+            className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors"
+          >
+            Create Student Account
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // User's lost items (scoped strictly to authenticated user)
   const myLostItems = items.filter(
-    (i) => i.type === 'lost' && (i.reporterName === currentUser?.name || i.reporterRoll === currentUser?.rollNo || i.id === 'CF-LST-101' || i.id === 'CF-LST-104')
+    (i) => i.type === 'lost' && (
+      (currentUser.rollNo && i.reporterRoll === currentUser.rollNo) || 
+      (currentUser.email && i.reporterEmail === currentUser.email) ||
+      i.reporterName === currentUser.name
+    )
   );
 
   // User's found items
   const myFoundItems = items.filter(
-    (i) => i.type === 'found' && (i.reporterName === currentUser?.name || i.reporterRoll === currentUser?.rollNo)
+    (i) => i.type === 'found' && (
+      (currentUser.rollNo && i.reporterRoll === currentUser.rollNo) || 
+      (currentUser.email && i.reporterEmail === currentUser.email) ||
+      i.reporterName === currentUser.name
+    )
   );
 
   // User's submitted claims
   const myClaims = claims.filter(
-    (c) => c.claimantName === currentUser?.name || c.claimantRoll === currentUser?.rollNo || c.id === 'CLM-8821'
+    (c) => 
+      (currentUser.rollNo && c.claimantRoll === currentUser.rollNo) ||
+      (currentUser.email && c.claimantEmail === currentUser.email) ||
+      c.claimantName === currentUser.name
   );
 
   // User's reported campus issues
   const myIssues = campusIssues.filter(
     (issue) =>
-      issue.reporterRoll === currentUser?.rollNo ||
-      issue.reporterName === currentUser?.name ||
-      issue.reporterEmail === currentUser?.email
+      (currentUser.rollNo && issue.reporterRoll === currentUser.rollNo) ||
+      (currentUser.email && issue.reporterEmail === currentUser.email) ||
+      issue.reporterName === currentUser.name
   );
 
   // Suggested matches for my lost items (Feature 1: Smart Match Engine)
@@ -82,11 +125,19 @@ export const DashboardPage = () => {
           
           <div className="flex items-center gap-4">
             <div className="relative">
-              <img
-                src={currentUser?.avatar || '/zaid-saifee.png'}
-                alt={currentUser?.name || 'Zaid Saifee'}
-                className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-orange-500 shadow-md ring-4 ring-orange-50"
-              />
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-orange-500 shadow-md ring-4 ring-orange-50 bg-stone-100 flex items-center justify-center">
+                {currentUser?.avatar ? (
+                  <img
+                    src={currentUser.avatar}
+                    alt={currentUser.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-orange-500 to-amber-600 text-white font-extrabold flex items-center justify-center text-2xl select-none">
+                    {(currentUser?.name || 'U').charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
               <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-white text-[9px] font-bold">
                 ✓
               </span>
@@ -94,17 +145,23 @@ export const DashboardPage = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-                  {currentUser?.name || 'Zaid Saifee'}
+                  {currentUser?.name || 'Verified Member'}
                 </h1>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-800">
-                  Student Verified
+                  {currentUser?.role === 'admin' || currentUser?.role === 'staff' ? 'Staff Desk' : 'Student Verified'}
                 </span>
+                <button
+                  onClick={() => setShowProfileModal(true)}
+                  className="text-[11px] font-bold text-orange-600 hover:underline ml-1"
+                >
+                  Edit Profile
+                </button>
               </div>
               <p className="text-xs text-stone-500 mt-0.5">
-                {currentUser?.department || 'Computer Science & Engineering'} • Roll No: <strong className="text-slate-800 font-mono">{currentUser?.rollNo || '220132010045'}</strong>
+                {currentUser?.department || 'Engineering'} • Roll No: <strong className="text-slate-800 font-mono">{currentUser?.rollNo || 'N/A'}</strong>
               </p>
               <p className="text-[11px] text-stone-400 mt-0.5">
-                Hi-Tech Institute of Engineering • {currentUser?.email || 'zaid.saifee@hitech.ac.in'}
+                Hi-Tech Institute of Engineering • {currentUser?.email}
               </p>
             </div>
           </div>

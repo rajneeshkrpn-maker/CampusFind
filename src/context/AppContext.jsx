@@ -2,10 +2,13 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
   INITIAL_ITEMS, 
   INITIAL_CLAIMS, 
-  DEMO_USERS, 
   INITIAL_NOTIFICATIONS 
 } from '../data/mockData';
 import {
+  supabase,
+  getCurrentSession,
+  onAuthStateChange,
+  signOutUser,
   fetchItemsFromSupabase,
   insertItemToSupabase,
   updateItemStatusInSupabase,
@@ -20,7 +23,12 @@ import {
   markNotificationReadInSupabase,
   fetchCampusIssuesFromSupabase,
   insertCampusIssueToSupabase,
-  updateCampusIssueStatusInSupabase
+  updateCampusIssueStatusInSupabase,
+  fetchProfileByUserId,
+  fetchProfileByEmail,
+  upsertUserProfile,
+  updateUserProfile,
+  uploadAvatar
 } from '../lib/supabase';
 import { findSuggestedMatches, detectDuplicateReports } from '../lib/matchEngine';
 
@@ -61,12 +69,13 @@ export const AppProvider = ({ children }) => {
   const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
   const [isLoadingBackend, setIsLoadingBackend] = useState(true);
 
-  // Current User: student account (Zaid Saifee) or admin
-  const [userRole, setUserRole] = useState(() => {
-    return localStorage.getItem('campusfind_user_role') || 'student';
-  });
+  // Authentication State (Session & Unique Profile)
+  const [session, setSession] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [userRole, setUserRole] = useState(null); // 'student' | 'admin' | 'staff' | null
+  const [authLoading, setAuthLoading] = useState(true);
 
-  // Active view: 'home' | 'browse' | 'report-lost' | 'report-found' | 'dashboard' | 'admin' | 'campus-issues' | 'login' | 'register'
+  // Active view: 'home' | 'browse' | 'report-lost' | 'report-found' | 'dashboard' | 'admin' | 'campus-issues' | 'login' | 'register' | 'profile'
   const [currentView, setCurrentView] = useState('home');
 
   // Search filter
@@ -82,12 +91,103 @@ export const AppProvider = ({ children }) => {
   const [showInquiryModal, setShowInquiryModal] = useState(false);
   const [showAIAssistantModal, setShowAIAssistantModal] = useState(false);
   const [showCollegeElectionModal, setShowCollegeElectionModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   // Notifications
   const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
 
   // Toasts
   const [toasts, setToasts] = useState([]);
+
+  // Authenticated Session Listener and Profile Hydration
+  useEffect(() => {
+    let isMounted = true;
+
+    const initAuthAndProfile = async () => {
+      try {
+        setAuthLoading(true);
+        const currentSession = await getCurrentSession();
+        if (!isMounted) return;
+
+        if (currentSession?.user) {
+          setSession(currentSession);
+          // Look up user profile by auth ID or email
+          const profile = await fetchProfileByUserId(currentSession.user.id) ||
+                          await fetchProfileByEmail(currentSession.user.email);
+          if (isMounted) {
+            if (profile) {
+              setCurrentUser(profile);
+              setUserRole(profile.role || 'student');
+            } else {
+              // If authenticated user has no profile yet, create standard student profile from auth metadata
+              const meta = currentSession.user.user_metadata || {};
+              const initialStudentId = meta.student_id || `STU-${currentSession.user.id.substring(0, 8).toUpperCase()}`;
+              const initialName = meta.full_name || currentSession.user.email.split('@')[0];
+              const created = await upsertUserProfile({
+                userId: currentSession.user.id,
+                studentId: initialStudentId,
+                fullName: initialName,
+                department: meta.department || 'Computer Science & Engineering',
+                academicYear: meta.academic_year || 'Student',
+                email: currentSession.user.email,
+                avatarUrl: meta.avatar_url || null,
+                role: 'student'
+              }).catch(() => null);
+
+              if (created && isMounted) {
+                setCurrentUser(created);
+                setUserRole(created.role || 'student');
+              }
+            }
+          }
+        } else {
+          // Public visitor state: No default user!
+          setSession(null);
+          setCurrentUser(null);
+          setUserRole(null);
+        }
+      } catch (authErr) {
+        console.warn('Auth initialization warning:', authErr);
+      } finally {
+        if (isMounted) {
+          setAuthLoading(false);
+        }
+      }
+    };
+
+    initAuthAndProfile();
+
+    // Listen to real-time auth state events (SIGN_IN, SIGN_OUT, TOKEN_REFRESH)
+    const { data: authListener } = onAuthStateChange(async (event, newSession) => {
+      if (!isMounted) return;
+
+      if (event === 'SIGNED_OUT' || !newSession?.user) {
+        setSession(null);
+        setCurrentUser(null);
+        setUserRole(null);
+        setAuthLoading(false);
+        return;
+      }
+
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
+        setSession(newSession);
+        const profile = await fetchProfileByUserId(newSession.user.id) ||
+                        await fetchProfileByEmail(newSession.user.email);
+        if (isMounted) {
+          if (profile) {
+            setCurrentUser(profile);
+            setUserRole(profile.role || 'student');
+          }
+          setAuthLoading(false);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      authListener?.subscription?.unsubscribe();
+    };
+  }, []);
 
   // Hydrate items, claims, notifications, and campus issues from Supabase on load
   useEffect(() => {
@@ -164,15 +264,6 @@ export const AppProvider = ({ children }) => {
     }
   }, [campusIssues]);
 
-  // Persist user role
-  useEffect(() => {
-    if (userRole) {
-      localStorage.setItem('campusfind_user_role', userRole);
-    } else {
-      localStorage.removeItem('campusfind_user_role');
-    }
-  }, [userRole]);
-
   // Toast helper
   const addToast = (message, type = 'success') => {
     const id = Date.now() + Math.random().toString(36).substring(2, 6);
@@ -197,10 +288,10 @@ export const AppProvider = ({ children }) => {
       time: itemData.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       status: itemData.type === 'lost' ? 'lost' : 'found',
       claimCount: 0,
-      reporterName: DEMO_USERS[userRole]?.name || 'Student Reporter',
-      reporterRole: DEMO_USERS[userRole]?.role || 'Student',
-      reporterRoll: DEMO_USERS[userRole]?.rollNo || '220132010045',
-      reporterEmail: DEMO_USERS[userRole]?.email || 'student@hitech.ac.in',
+      reporterName: currentUser?.name || 'Campus Student',
+      reporterRole: currentUser?.role === 'admin' ? 'Campus Security Desk' : (currentUser?.role || 'Student'),
+      reporterRoll: currentUser?.rollNo || 'Pending',
+      reporterEmail: currentUser?.email || '',
       isDuplicate: false,
       duplicateOf: null
     };
@@ -313,6 +404,9 @@ export const AppProvider = ({ children }) => {
     const newClaim = {
       ...claimData,
       id: newClaimId,
+      claimantName: claimData.claimantName || currentUser?.name || 'Claimant',
+      claimantRoll: claimData.claimantRoll || currentUser?.rollNo || '',
+      claimantEmail: claimData.claimantEmail || currentUser?.email || '',
       status: 'pending',
       submittedAt: new Date().toLocaleString(),
       adminNotes: 'Awaiting student verification at campus security desk.'
@@ -346,7 +440,7 @@ export const AppProvider = ({ children }) => {
     // Notify staff of new incoming claim
     const adminNotif = {
       title: 'New Ownership Claim Submitted',
-      message: `Claim ${newClaimId} submitted for "${claimData.itemTitle}" by ${claimData.claimantName}. Pending review.`,
+      message: `Claim ${newClaimId} submitted for "${claimData.itemTitle}" by ${newClaim.claimantName}. Pending review.`,
       time: 'Just now',
       type: 'claim',
       linkView: 'admin',
@@ -425,9 +519,9 @@ export const AppProvider = ({ children }) => {
       ...issueData,
       id: `ISSUE-${Math.floor(1000 + Math.random() * 9000)}`,
       status: 'submitted',
-      reporterName: DEMO_USERS[userRole]?.name || 'Student Reporter',
-      reporterRoll: DEMO_USERS[userRole]?.rollNo || '220132010045',
-      reporterEmail: DEMO_USERS[userRole]?.email || 'student@hitech.ac.in',
+      reporterName: currentUser?.name || 'Campus Member',
+      reporterRoll: currentUser?.rollNo || 'N/A',
+      reporterEmail: currentUser?.email || '',
       createdAt: new Date().toISOString()
     };
 
@@ -499,19 +593,41 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // Switch role helper
-  const switchUserRole = (role) => {
-    setUserRole(role);
-    if (role === 'admin') {
-      addToast('Switched to Campus Security Officer R. Verma (Admin)', 'info');
-    } else if (role === 'student') {
-      addToast('Switched to Student Zaid Saifee (CSE 3rd Year)', 'info');
-    } else {
-      addToast('Logged out of demo session.', 'info');
+  // Logout session
+  const logout = async () => {
+    try {
+      await signOutUser();
+    } catch (e) {
+      console.warn('Signout warning:', e);
     }
+    setSession(null);
+    setCurrentUser(null);
+    setUserRole(null);
+    setCurrentView('home');
+    addToast('Signed out of CampusFind.', 'info');
   };
 
-  // Reset to original sample data
+  // Update Profile
+  const updateProfile = async (updates) => {
+    if (!currentUser?.id) throw new Error('Not authenticated');
+    const updated = await updateUserProfile(currentUser.id, updates);
+    setCurrentUser(updated);
+    addToast('Profile updated successfully!', 'success');
+    return updated;
+  };
+
+  // Upload Avatar
+  const uploadUserAvatar = async (file) => {
+    const uid = session?.user?.id || currentUser?.userId || currentUser?.id;
+    if (!uid) throw new Error('Authentication required for profile picture upload.');
+    const avatarUrl = await uploadAvatar(file, uid);
+    const updated = await updateUserProfile(currentUser.id, { avatarUrl });
+    setCurrentUser(updated);
+    addToast('Profile picture uploaded successfully!', 'success');
+    return avatarUrl;
+  };
+
+  // Reset to original sample data (admin/debug only)
   const resetDemoData = () => {
     localStorage.removeItem('campusfind_items');
     localStorage.removeItem('campusfind_claims');
@@ -535,16 +651,17 @@ export const AppProvider = ({ children }) => {
     addToast('All notifications marked as read', 'info');
   };
 
-  const currentUser = userRole ? DEMO_USERS[userRole] : null;
-
   return (
     <AppContext.Provider
       value={{
         items,
         claims,
         campusIssues,
-        userRole,
+        session,
         currentUser,
+        setCurrentUser,
+        userRole,
+        authLoading,
         currentView,
         setCurrentView,
         searchQuery,
@@ -567,6 +684,8 @@ export const AppProvider = ({ children }) => {
         setShowAIAssistantModal,
         showCollegeElectionModal,
         setShowCollegeElectionModal,
+        showProfileModal,
+        setShowProfileModal,
         notifications,
         markNotificationRead,
         markAllNotificationsRead,
@@ -582,7 +701,9 @@ export const AppProvider = ({ children }) => {
         reportCampusIssue,
         updateCampusIssueStatus,
         submitInquiry,
-        switchUserRole,
+        logout,
+        updateProfile,
+        uploadUserAvatar,
         resetDemoData,
         isSupabaseConnected,
         isLoadingBackend

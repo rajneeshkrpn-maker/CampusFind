@@ -114,7 +114,7 @@ export const InquiryModal = () => {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Zaid Saifee"
+                  placeholder="e.g. Rahul Sharma"
                   className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:border-orange-500"
                   required
                 />

@@ -470,9 +470,136 @@ export const markNotificationReadInSupabase = async (notifId) => {
   }
 };
 
-// ==================== PROFILES & ROLE-BASED AUTH SERVICE ====================
+// ==================== AUTH, PROFILES & ROLE-BASED ACCESS SERVICE ====================
+
+/**
+ * Normalizes DB profile row to frontend model
+ */
+export const normalizeProfile = (row) => {
+  if (!row) return null;
+  return {
+    id: row.id,
+    userId: row.user_id || row.id,
+    studentId: row.student_id,
+    rollNo: row.student_id,
+    name: row.full_name,
+    fullName: row.full_name,
+    department: row.department,
+    year: row.academic_year,
+    academicYear: row.academic_year,
+    email: row.email,
+    phone: row.phone || '',
+    avatar: row.avatar_url || null,
+    avatarUrl: row.avatar_url || null,
+    role: row.role || 'student',
+    isApproved: Boolean(row.is_approved),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+};
+
+export const getCurrentSession = async () => {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error) {
+    console.warn('Error fetching Supabase session:', error);
+    return null;
+  }
+  return session;
+};
+
+export const onAuthStateChange = (callback) => {
+  return supabase.auth.onAuthStateChange(callback);
+};
+
+export const signOutUser = async () => {
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    console.error('Error signing out:', error);
+    throw error;
+  }
+  return true;
+};
+
+export const sendOtpToEmail = async (email, { shouldCreateUser = false, metadata = {} } = {}) => {
+  const cleanEmail = email.trim().toLowerCase();
+  const { data, error } = await supabase.auth.signInWithOtp({
+    email: cleanEmail,
+    options: {
+      shouldCreateUser,
+      data: metadata,
+      emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined
+    }
+  });
+
+  if (error) {
+    console.error('Error sending email OTP:', error);
+    throw error;
+  }
+  return data;
+};
+
+export const verifyEmailOtp = async (email, token) => {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanToken = token.trim();
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: cleanEmail,
+    token: cleanToken,
+    type: 'email'
+  });
+
+  if (error) {
+    console.error('Error verifying email OTP:', error);
+    throw error;
+  }
+  return data;
+};
+
+export const signInWithEmailPassword = async (email, password) => {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email.trim().toLowerCase(),
+    password
+  });
+
+  if (error) {
+    console.error('Error in signInWithPassword:', error);
+    throw error;
+  }
+  return data;
+};
+
+export const signUpWithEmailPassword = async (email, password, metadata = {}) => {
+  const { data, error } = await supabase.auth.signUp({
+    email: email.trim().toLowerCase(),
+    password,
+    options: {
+      data: metadata
+    }
+  });
+
+  if (error) {
+    console.error('Error in signUp:', error);
+    throw error;
+  }
+  return data;
+};
+
+export const fetchProfileByUserId = async (userId) => {
+  if (!userId) return null;
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .or(`user_id.eq.${userId},id.eq.${userId}`)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('Error querying profile by userId:', error);
+    return null;
+  }
+  return normalizeProfile(data);
+};
 
 export const fetchProfileByStudentId = async (studentId) => {
+  if (!studentId) return null;
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
@@ -483,58 +610,164 @@ export const fetchProfileByStudentId = async (studentId) => {
     console.warn('Error querying profile by student_id:', error);
     return null;
   }
-  return data;
+  return normalizeProfile(data);
 };
 
 export const fetchProfileByEmail = async (email) => {
+  if (!email) return null;
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .ilike('email', email.trim())
+    .ilike('email', email.trim().toLowerCase())
     .maybeSingle();
 
   if (error) {
     console.warn('Error querying profile by email:', error);
     return null;
   }
-  return data;
+  return normalizeProfile(data);
 };
 
-export const registerStudentProfileInSupabase = async ({
+export const upsertUserProfile = async ({
+  userId,
   studentId,
   fullName,
   department,
   academicYear,
-  email
+  email,
+  phone = '',
+  avatarUrl = null,
+  role = 'student'
 }) => {
-  // Enforce unique student ID and email at the DB layer
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanStudentId = studentId.trim();
+
+  // Enforce role: clients cannot create admin/staff roles
+  const safeRole = role === 'admin' || role === 'staff' ? 'student' : (role || 'student');
+
+  const payload = {
+    user_id: userId || null,
+    student_id: cleanStudentId,
+    full_name: fullName.trim(),
+    department: department.trim(),
+    academic_year: academicYear.trim(),
+    email: cleanEmail,
+    phone: phone ? phone.trim() : null,
+    avatar_url: avatarUrl || null,
+    role: safeRole,
+    is_approved: true,
+    updated_at: new Date().toISOString()
+  };
+
+  // Check if profile exists by email or student_id or user_id
+  const existing = await fetchProfileByEmail(cleanEmail) || 
+                   await fetchProfileByStudentId(cleanStudentId) ||
+                   (userId ? await fetchProfileByUserId(userId) : null);
+
+  if (existing) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        user_id: userId || existing.userId,
+        full_name: payload.full_name,
+        department: payload.department,
+        academic_year: payload.academic_year,
+        phone: payload.phone || existing.phone,
+        avatar_url: payload.avatar_url || existing.avatar,
+        updated_at: payload.updated_at
+      })
+      .eq('id', existing.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating existing profile in Supabase:', error);
+      throw error;
+    }
+    return normalizeProfile(data);
+  } else {
+    const { data, error } = await supabase
+      .from('profiles')
+      .insert([payload])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error inserting profile into Supabase:', error);
+      throw error;
+    }
+    return normalizeProfile(data);
+  }
+};
+
+export const updateUserProfile = async (profileId, updates) => {
+  // Prevent elevation of role or approval status through client
+  const safeUpdates = {
+    updated_at: new Date().toISOString()
+  };
+  if (updates.fullName !== undefined) safeUpdates.full_name = updates.fullName.trim();
+  if (updates.department !== undefined) safeUpdates.department = updates.department.trim();
+  if (updates.academicYear !== undefined) safeUpdates.academic_year = updates.academicYear.trim();
+  if (updates.phone !== undefined) safeUpdates.phone = updates.phone ? updates.phone.trim() : null;
+  if (updates.avatarUrl !== undefined) safeUpdates.avatar_url = updates.avatarUrl;
+
   const { data, error } = await supabase
     .from('profiles')
-    .insert([{
-      student_id: studentId.trim(),
-      full_name: fullName.trim(),
-      department: department.trim(),
-      academic_year: academicYear.trim(),
-      email: email.trim().toLowerCase(),
-      role: 'student', // Client can NEVER elevate itself to admin!
-      is_approved: true
-    }])
+    .update(safeUpdates)
+    .eq('id', profileId)
     .select()
     .single();
 
   if (error) {
-    console.error('Error creating student profile in Supabase:', error);
+    console.error('Error updating user profile:', error);
     throw error;
   }
-  return data;
+  return normalizeProfile(data);
+};
+
+export const uploadAvatar = async (file, userId) => {
+  if (!file) throw new Error('No file provided');
+  if (!userId) throw new Error('Authentication required for avatar upload');
+
+  // Validate file type
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  if (!allowedTypes.includes(file.type)) {
+    throw new Error('Please upload a valid image file (JPG, PNG, WEBP, or GIF).');
+  }
+
+  // Validate size (max 5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    throw new Error('Avatar image must be smaller than 5MB.');
+  }
+
+  const ext = file.name.split('.').pop() || 'png';
+  const filePath = `${userId}/avatar-${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: true
+    });
+
+  if (uploadError) {
+    console.error('Error uploading avatar to storage:', uploadError);
+    throw uploadError;
+  }
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('avatars')
+    .getPublicUrl(filePath);
+
+  return publicUrl;
 };
 
 export const verifyAdminInSupabase = async (identifier) => {
-  // Checks if the user is a verified staff or admin in the trusted database
+  const cleanId = identifier.trim();
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .or(`student_id.eq.${identifier},email.ilike.${identifier}`)
+    .or(`student_id.eq.${cleanId},email.ilike.${cleanId}`)
     .maybeSingle();
 
   if (error || !data) {
@@ -545,5 +778,5 @@ export const verifyAdminInSupabase = async (identifier) => {
     return { authorized: false, message: 'Access Denied: Account is not authorized for staff or security portal access.' };
   }
 
-  return { authorized: true, profile: data };
+  return { authorized: true, profile: normalizeProfile(data) };
 };

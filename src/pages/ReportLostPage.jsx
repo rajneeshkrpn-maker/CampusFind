@@ -305,11 +305,17 @@ export const ReportLostPage = () => {
           <div className="p-3.5 bg-stone-50 rounded-xl border border-stone-200 text-xs text-stone-600 flex items-center justify-between">
             <div>
               <span className="font-bold text-slate-900">Reporter Identity: </span>
-              <span>{currentUser?.name || 'Zaid Saifee'} (Roll: {currentUser?.rollNo || '220132010045'})</span>
+              {currentUser ? (
+                <span>{currentUser.name} (Roll: {currentUser.rollNo || 'N/A'})</span>
+              ) : (
+                <span className="text-amber-700 font-medium">Campus Member (Sign in recommended for real-time tracking)</span>
+              )}
             </div>
-            <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded text-[11px]">
-              Hi-Tech Student Verified
-            </span>
+            {currentUser && (
+              <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded text-[11px]">
+                Hi-Tech Verified
+              </span>
+            )}
           </div>
 
           {/* Action Buttons */}

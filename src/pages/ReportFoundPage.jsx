@@ -331,7 +331,11 @@ export const ReportFoundPage = () => {
           <div className="p-3.5 bg-stone-50 rounded-xl border border-stone-200 text-xs text-stone-600 flex items-center justify-between">
             <div>
               <span className="font-bold text-slate-900">Found By: </span>
-              <span>{currentUser?.name || 'Zaid Saifee'} ({currentUser?.role || 'Student'})</span>
+              {currentUser ? (
+                <span>{currentUser.name} ({currentUser.role || 'Student'})</span>
+              ) : (
+                <span className="text-stone-700 font-medium">Campus Good Samaritan</span>
+              )}
             </div>
             <span className="text-blue-700 font-semibold bg-blue-50 px-2 py-0.5 rounded text-[11px]">
               Hi-Tech Campus Honor Code

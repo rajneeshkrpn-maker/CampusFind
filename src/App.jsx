@@ -9,6 +9,7 @@ import { CampusMapModal } from './components/CampusMapModal';
 import { InquiryModal } from './components/InquiryModal';
 import { CampusAIAssistantModal } from './components/CampusAIAssistantModal';
 import { CollegeElectionModal } from './components/CollegeElectionModal';
+import { ProfileModal } from './components/ProfileModal';
 import { HomePage } from './pages/HomePage';
 import { BrowsePage } from './pages/BrowsePage';
 import { ReportLostPage } from './pages/ReportLostPage';
@@ -24,7 +25,9 @@ const AppContent = () => {
     showAIAssistantModal, 
     setShowAIAssistantModal,
     showCollegeElectionModal,
-    setShowCollegeElectionModal
+    setShowCollegeElectionModal,
+    showProfileModal,
+    setShowProfileModal
   } = useApp();
 
   // Scroll to top upon page navigation
@@ -82,6 +85,10 @@ const AppContent = () => {
       <CollegeElectionModal 
         isOpen={showCollegeElectionModal} 
         onClose={() => setShowCollegeElectionModal(false)} 
+      />
+      <ProfileModal 
+        isOpen={showProfileModal} 
+        onClose={() => setShowProfileModal(false)} 
       />
 
       {/* Toast Feedback Notifications */}

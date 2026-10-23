@@ -23,6 +23,7 @@ import {
 
 export const AdminPage = () => {
   const { 
+    currentUser,
     items, 
     claims, 
     campusIssues, 
@@ -35,6 +36,8 @@ export const AdminPage = () => {
     resetDemoData 
   } = useApp();
 
+  const isAuthorizedStaff = currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff');
+
   const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'claims' | 'items' | 'duplicates' | 'issues' | 'guards'
   const [claimSearch, setClaimSearch] = useState('');
   const [itemSearch, setItemSearch] = useState('');
@@ -46,6 +49,31 @@ export const AdminPage = () => {
   const [selectedIssueId, setSelectedIssueId] = useState(null);
   const [issueResolutionNote, setIssueResolutionNote] = useState('');
   const [issueAssignedTo, setIssueAssignedTo] = useState('IT AV Team');
+
+  if (!isAuthorizedStaff) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-20 text-center space-y-6">
+        <div className="w-16 h-16 rounded-3xl bg-amber-100 border border-amber-200 text-amber-700 flex items-center justify-center mx-auto shadow-inner">
+          <Lock className="w-8 h-8" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">Security Staff Desk</h2>
+          <p className="text-xs text-stone-500 leading-relaxed">
+            Access to claim approvals, item custody logs, duplicate reports, and facility work orders is restricted to authorized campus security guards and proctorial board officers.
+          </p>
+        </div>
+        <div className="pt-2">
+          <button
+            onClick={() => setCurrentView('login')}
+            className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5"
+          >
+            <Lock className="w-3.5 h-3.5" />
+            <span>Enter Staff / Security Portal</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // FEATURE 5: CAMPUS RECOVERY ANALYTICS (Derived strictly from real Supabase records)
   const totalLost = items.filter(i => i.type === 'lost').length;

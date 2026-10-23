@@ -18,7 +18,10 @@ import {
   Bot,
   Vote,
   Wrench,
-  Sparkles
+  Sparkles,
+  LogOut,
+  LogIn,
+  UserPlus
 } from 'lucide-react';
 
 export const Navbar = () => {
@@ -26,6 +29,8 @@ export const Navbar = () => {
     currentView, 
     setCurrentView, 
     currentUser, 
+    logout,
+    setShowProfileModal,
     searchQuery, 
     setSearchQuery, 
     notifications, 
@@ -274,138 +279,186 @@ export const Navbar = () => {
                 )}
               </div>
 
-              {/* Student Profile Widget */}
-              <div className="relative" ref={profileRef}>
-                <button
-                  onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                  className="flex items-center gap-2.5 p-1 sm:pl-2.5 sm:pr-3 sm:py-1 rounded-full bg-stone-100/90 hover:bg-stone-200/80 border border-stone-200/90 transition-all text-left group shadow-2xs"
-                  aria-label="Account Menu"
-                >
-                  <div className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden ring-2 ring-white shadow-xs shrink-0">
-                    <img
-                      src={currentUser?.avatar || '/zaid-saifee.png'}
-                      alt={currentUser?.name || 'Zaid Saifee'}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80';
-                      }}
-                    />
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white"></span>
-                  </div>
-
-                  <div className="hidden sm:flex flex-col pr-1">
-                    <span className="text-xs font-bold text-slate-900 group-hover:text-orange-600 transition-colors leading-tight">
-                      {currentUser?.name || 'Zaid Saifee'}
-                    </span>
-                    <span className="text-[10px] font-semibold text-stone-500 leading-none">
-                      {currentUser?.role === 'Student' ? 'CSE • 3rd Year' : 'Security Desk'}
-                    </span>
-                  </div>
-
-                  <ChevronDown className={`w-3.5 h-3.5 text-stone-400 group-hover:text-slate-700 transition-transform hidden sm:block ${
-                    profileDropdownOpen ? 'rotate-180' : ''
-                  }`} />
-                </button>
-
-                {/* Profile Dropdown */}
-                {profileDropdownOpen && (
-                  <div className="absolute right-0 mt-2.5 w-72 bg-white rounded-2xl shadow-2xl border border-stone-200 py-2 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 text-xs">
-                    
-                    <div className="px-4 py-3.5 border-b border-stone-100 bg-gradient-to-br from-stone-50 to-orange-50/20">
-                      <div className="flex items-center gap-3">
+              {/* Public Visitor (Log In / Sign Up) vs Authenticated User Profile */}
+              {!currentUser ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentView('login')}
+                    className="px-3 sm:px-4 py-1.5 text-xs font-bold text-slate-700 hover:text-slate-950 border border-stone-200 hover:border-slate-300 rounded-full bg-stone-50 hover:bg-stone-100 transition-all shadow-2xs flex items-center gap-1.5"
+                  >
+                    <LogIn className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Log In</span>
+                  </button>
+                  <button
+                    onClick={() => setCurrentView('register')}
+                    className="px-3 sm:px-4 py-1.5 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-full transition-all shadow-xs flex items-center gap-1.5"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>Sign Up</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="relative" ref={profileRef}>
+                  <button
+                    onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                    className="flex items-center gap-2.5 p-1 sm:pl-2 sm:pr-3 sm:py-1 rounded-full bg-stone-100/90 hover:bg-stone-200/80 border border-stone-200/90 transition-all text-left group shadow-2xs"
+                    aria-label="Account Menu"
+                  >
+                    <div className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden ring-2 ring-white shadow-xs shrink-0 bg-stone-200 flex items-center justify-center">
+                      {currentUser?.avatar ? (
                         <img
-                          src={currentUser?.avatar || '/zaid-saifee.png'}
-                          alt={currentUser?.name || 'Zaid Saifee'}
-                          className="w-11 h-11 rounded-full object-cover ring-2 ring-orange-500/20 shadow-xs"
+                          src={currentUser.avatar}
+                          alt={currentUser.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                         />
-                        <div className="min-w-0 flex-1">
-                          <h4 className="font-extrabold text-slate-900 text-sm truncate">
-                            {currentUser?.name || 'Zaid Saifee'}
-                          </h4>
-                          <div className="text-[11px] text-stone-500 truncate">
-                            ID: <strong className="font-mono text-slate-800">{currentUser?.rollNo || '220132010045'}</strong>
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-orange-500 to-amber-600 text-white font-extrabold flex items-center justify-center text-xs select-none">
+                          {(currentUser?.name || 'U').charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white"></span>
+                    </div>
+
+                    <div className="hidden sm:flex flex-col pr-1">
+                      <span className="text-xs font-bold text-slate-900 group-hover:text-orange-600 transition-colors leading-tight">
+                        {currentUser?.name ? currentUser.name.split(' ')[0] : 'Account'}
+                      </span>
+                      <span className="text-[10px] font-semibold text-stone-500 leading-none">
+                        {currentUser?.role === 'admin' || currentUser?.role === 'staff' ? 'Staff Desk' : (currentUser?.rollNo || 'Student')}
+                      </span>
+                    </div>
+
+                    <ChevronDown className={`w-3.5 h-3.5 text-stone-400 group-hover:text-slate-700 transition-transform hidden sm:block ${
+                      profileDropdownOpen ? 'rotate-180' : ''
+                    }`} />
+                  </button>
+
+                  {/* Profile Dropdown */}
+                  {profileDropdownOpen && (
+                    <div className="absolute right-0 mt-2.5 w-72 bg-white rounded-2xl shadow-2xl border border-stone-200 py-2 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 text-xs">
+                      
+                      <div className="px-4 py-3.5 border-b border-stone-100 bg-gradient-to-br from-stone-50 to-orange-50/20">
+                        <div className="flex items-center gap-3">
+                          <div className="w-11 h-11 rounded-full overflow-hidden ring-2 ring-orange-500/20 shadow-xs shrink-0 bg-stone-200 flex items-center justify-center">
+                            {currentUser?.avatar ? (
+                              <img
+                                src={currentUser.avatar}
+                                alt={currentUser.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-gradient-to-br from-orange-500 to-amber-600 text-white font-extrabold flex items-center justify-center text-sm select-none">
+                                {(currentUser?.name || 'U').charAt(0).toUpperCase()}
+                              </div>
+                            )}
                           </div>
-                          <div className="text-[10px] font-bold text-emerald-700 flex items-center gap-1 mt-0.5">
-                            <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                            <span>Hi-Tech Verified Account</span>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-extrabold text-slate-900 text-sm truncate">
+                              {currentUser?.name || 'Verified Member'}
+                            </h4>
+                            <div className="text-[11px] text-stone-500 truncate">
+                              ID: <strong className="font-mono text-slate-800">{currentUser?.rollNo || 'N/A'}</strong>
+                            </div>
+                            <div className="text-[10px] font-bold text-emerald-700 flex items-center gap-1 mt-0.5">
+                              <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                              <span>{currentUser?.role === 'admin' || currentUser?.role === 'staff' ? 'Staff Security Officer' : 'Verified Campus Student'}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
+
+                      <div className="p-2 space-y-1">
+                        <button
+                          onClick={() => {
+                            setShowProfileModal(true);
+                            setProfileDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-slate-700 hover:bg-stone-50 font-semibold flex items-center justify-between transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <User className="w-4 h-4 text-orange-600" />
+                            <span>My Profile & Avatar</span>
+                          </div>
+                          <ArrowRight className="w-3.5 h-3.5 text-stone-400" />
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setCurrentView('dashboard');
+                            setProfileDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-slate-700 hover:bg-stone-50 font-semibold flex items-center justify-between transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Package className="w-4 h-4 text-indigo-600" />
+                            <span>Student Dashboard</span>
+                          </div>
+                          <ArrowRight className="w-3.5 h-3.5 text-stone-400" />
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setCurrentView('campus-issues');
+                            setProfileDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-slate-700 hover:bg-stone-50 font-semibold flex items-center justify-between transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Wrench className="w-4 h-4 text-blue-600" />
+                            <span>Campus Issues Tracker</span>
+                          </div>
+                          <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-bold">New</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setCurrentView('report-lost');
+                            setProfileDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-slate-700 hover:bg-stone-50 font-semibold flex items-center justify-between transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Package className="w-4 h-4 text-rose-600" />
+                            <span>Report Lost Belonging</span>
+                          </div>
+                        </button>
+
+                        {(currentUser?.role === 'admin' || currentUser?.role === 'staff') && (
+                          <button
+                            onClick={() => {
+                              setCurrentView('admin');
+                              setProfileDropdownOpen(false);
+                            }}
+                            className="w-full text-left px-3 py-2 rounded-xl text-slate-700 hover:bg-stone-50 font-semibold flex items-center justify-between transition-colors"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <Lock className="w-4 h-4 text-amber-600" />
+                              <span>Security Staff Portal</span>
+                            </div>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="px-4 py-2.5 border-t border-stone-100 bg-stone-50/50 flex items-center justify-between">
+                        <span className="text-[11px] text-stone-500 truncate max-w-[130px]" title={currentUser?.email}>
+                          {currentUser?.email}
+                        </span>
+                        <button
+                          onClick={() => {
+                            logout();
+                            setProfileDropdownOpen(false);
+                          }}
+                          className="text-rose-600 hover:text-rose-700 font-bold text-xs flex items-center gap-1 transition-colors"
+                        >
+                          <LogOut className="w-3.5 h-3.5" />
+                          <span>Sign Out</span>
+                        </button>
+                      </div>
+
                     </div>
-
-                    <div className="p-2 space-y-1">
-                      <button
-                        onClick={() => {
-                          setCurrentView('dashboard');
-                          setProfileDropdownOpen(false);
-                        }}
-                        className="w-full text-left px-3 py-2 rounded-xl text-slate-700 hover:bg-stone-50 font-semibold flex items-center justify-between transition-colors"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <User className="w-4 h-4 text-orange-600" />
-                          <span>Student Dashboard</span>
-                        </div>
-                        <ArrowRight className="w-3.5 h-3.5 text-stone-400" />
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setCurrentView('campus-issues');
-                          setProfileDropdownOpen(false);
-                        }}
-                        className="w-full text-left px-3 py-2 rounded-xl text-slate-700 hover:bg-stone-50 font-semibold flex items-center justify-between transition-colors"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Wrench className="w-4 h-4 text-indigo-600" />
-                          <span>Campus Issues Tracker</span>
-                        </div>
-                        <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-bold">New</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setCurrentView('report-lost');
-                          setProfileDropdownOpen(false);
-                        }}
-                        className="w-full text-left px-3 py-2 rounded-xl text-slate-700 hover:bg-stone-50 font-semibold flex items-center justify-between transition-colors"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Package className="w-4 h-4 text-rose-600" />
-                          <span>Report Lost Belonging</span>
-                        </div>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setCurrentView('admin');
-                          setProfileDropdownOpen(false);
-                        }}
-                        className="w-full text-left px-3 py-2 rounded-xl text-slate-700 hover:bg-stone-50 font-semibold flex items-center justify-between transition-colors"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Lock className="w-4 h-4 text-amber-600" />
-                          <span>Security Staff Portal</span>
-                        </div>
-                      </button>
-                    </div>
-
-                    <div className="px-4 py-2 border-t border-stone-100 bg-stone-50/50 text-[11px] text-stone-500 flex items-center justify-between">
-                      <span>Department: {currentUser?.department || 'CSE'}</span>
-                      <button
-                        onClick={() => {
-                          setCurrentView('login');
-                          setProfileDropdownOpen(false);
-                        }}
-                        className="text-orange-600 font-bold hover:underline"
-                      >
-                        Switch Account
-                      </button>
-                    </div>
-
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
 
               {/* Mobile hamburger menu toggle */}
               <button
@@ -553,32 +606,81 @@ export const Navbar = () => {
             </button>
           </div>
 
-          {/* Mobile Profile Card */}
+          {/* Mobile Profile / Auth Card */}
           <div className="pt-3 border-t border-stone-100">
-            <div 
-              onClick={() => {
-                setCurrentView('dashboard');
-                setMobileMenuOpen(false);
-              }}
-              className="p-3 bg-stone-50 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-stone-100 transition-colors"
-            >
-              <img
-                src={currentUser?.avatar || '/zaid-saifee.png'}
-                alt={currentUser?.name || 'Zaid Saifee'}
-                className="w-10 h-10 rounded-full object-cover ring-2 ring-orange-500/20"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="font-bold text-slate-900 text-xs truncate">
-                  {currentUser?.name || 'Zaid Saifee'}
+            {!currentUser ? (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    setCurrentView('login');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="py-2.5 px-3 text-center text-xs font-bold text-slate-800 border border-stone-200 rounded-xl bg-stone-50 hover:bg-stone-100 flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <LogIn className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Log In</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setCurrentView('register');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="py-2.5 px-3 text-center text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-xl flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Sign Up</span>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div 
+                  onClick={() => {
+                    setShowProfileModal(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="p-3 bg-stone-50 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-stone-100 transition-colors"
+                >
+                  <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-orange-500/20 shrink-0 bg-stone-200 flex items-center justify-center">
+                    {currentUser?.avatar ? (
+                      <img
+                        src={currentUser.avatar}
+                        alt={currentUser.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-orange-500 to-amber-600 text-white font-extrabold flex items-center justify-center text-xs select-none">
+                        {(currentUser?.name || 'U').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-slate-900 text-xs truncate">
+                      {currentUser?.name || 'Verified Member'}
+                    </div>
+                    <div className="text-[10px] text-stone-500">
+                      ID: {currentUser?.rollNo || 'N/A'} • {currentUser?.department || 'CSE'}
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold bg-orange-50 text-orange-700 border border-orange-200 px-2 py-0.5 rounded">
+                    Profile
+                  </span>
                 </div>
-                <div className="text-[10px] text-stone-500">
-                  {currentUser?.role} • {currentUser?.department || 'CSE'}
+
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[11px] text-stone-400 truncate max-w-[180px]">{currentUser?.email}</span>
+                  <button
+                    onClick={() => {
+                      logout();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 py-1"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign Out</span>
+                  </button>
                 </div>
               </div>
-              <span className="text-[10px] font-bold bg-orange-600 text-white px-2 py-0.5 rounded">
-                Dashboard
-              </span>
-            </div>
+            )}
           </div>
         </div>
       )}
