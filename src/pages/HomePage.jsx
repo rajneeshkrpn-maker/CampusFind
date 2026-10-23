@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { HeroSection } from '../components/HeroSection';
 import { ItemCard } from '../components/ItemCard';
+import { CampusTourSection } from '../components/CampusTourSection';
 import { 
   Search, 
   ShieldCheck, 
@@ -11,7 +12,10 @@ import {
   MapPin, 
   Users, 
   Lock, 
-  Tag
+  Tag,
+  Vote,
+  Sparkles,
+  Calendar
 } from 'lucide-react';
 
 export const HomePage = () => {
@@ -20,7 +24,8 @@ export const HomePage = () => {
     setCurrentView, 
     searchQuery, 
     setSearchQuery, 
-    setShowSecurityHubsModal 
+    setShowSecurityHubsModal,
+    setShowCollegeElectionModal
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'lost' | 'found'
@@ -378,7 +383,78 @@ export const HomePage = () => {
         </div>
       </section>
 
-      {/* 5. "How It Works" Section (Report, Match, Recover) */}
+      {/* 5. College Election / Election Coming Soon Card */}
+      <section id="election-hub" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-indigo-950 via-slate-900 to-stone-900 text-white border border-indigo-500/30 shadow-2xl p-6 sm:p-10">
+          
+          {/* Subtle decorative glow */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-72 h-72 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+            <div className="space-y-3 max-w-2xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-amber-400 text-slate-950 shadow-xs">
+                  <Vote className="w-3.5 h-3.5" />
+                  College Election
+                </span>
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  <Sparkles className="w-3 h-3 text-amber-400" />
+                  Coming Soon • Semester 6 Release
+                </span>
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight">
+                Student Council Governance System
+              </h2>
+
+              <p className="text-stone-300 text-xs sm:text-sm leading-relaxed font-normal">
+                CampusFind is expanding beyond lost-and-found into a comprehensive campus governance hub. 
+                Our upcoming election portal brings transparent, roll-number verified digital ballots and candidate manifesto reviews for Hi-Tech Institute students.
+              </p>
+
+              {/* 3 Key Election Feature Pillars */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                <div className="p-3 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xs">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400 mb-1" />
+                  <div className="text-xs font-bold text-white">Verified Voter Roll</div>
+                  <div className="text-[10px] text-stone-400">Anti-proxy student verification</div>
+                </div>
+                <div className="p-3 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xs">
+                  <Users className="w-4 h-4 text-blue-400 mb-1" />
+                  <div className="text-xs font-bold text-white">Candidate Manifesto</div>
+                  <div className="text-[10px] text-stone-400">Department rep agendas & Q&A</div>
+                </div>
+                <div className="p-3 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xs">
+                  <Calendar className="w-4 h-4 text-purple-400 mb-1" />
+                  <div className="text-xs font-bold text-white">Proctorial Auditing</div>
+                  <div className="text-[10px] text-stone-400">Tamper-evident turn-out telemetry</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Area */}
+            <div className="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0 self-start lg:self-center">
+              <button
+                onClick={() => setShowCollegeElectionModal(true)}
+                className="px-6 py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-extrabold text-xs sm:text-sm rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
+              >
+                <Vote className="w-4 h-4 text-slate-950" />
+                <span>Explore Election Roadmap</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              <div className="text-center text-[11px] text-stone-400">
+                Official Proctorial Board Oversight
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 6. "Explore Campus in 360°" Section — Placed directly below the College Election card */}
+      <CampusTourSection />
+
+      {/* 7. "How It Works" Section (Report, Match, Recover) */}
       <section id="how-it-works" className="bg-stone-50/70 border-y border-stone-200 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-12">
