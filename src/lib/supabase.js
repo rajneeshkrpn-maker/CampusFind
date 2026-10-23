@@ -587,6 +587,48 @@ export const signUpWithEmailPassword = async (email, password, metadata = {}) =>
   };
 };
 
+export const sendPasswordResetEmail = async (email) => {
+  const cleanEmail = email.trim().toLowerCase();
+  const { data, error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+    redirectTo: typeof window !== 'undefined' ? `${window.location.origin}` : undefined
+  });
+
+  if (error) {
+    console.error('Error sending password reset email:', error);
+    throw error;
+  }
+  return data;
+};
+
+export const verifyRecoveryOtp = async (email, token) => {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanToken = token.trim();
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: cleanEmail,
+    token: cleanToken,
+    type: 'recovery'
+  });
+
+  if (error) {
+    console.error('Error verifying recovery OTP:', error);
+    throw error;
+  }
+  return data;
+};
+
+export const updateUserPassword = async (newPassword) => {
+  const { data, error } = await supabase.auth.updateUser({
+    password: newPassword
+  });
+
+  if (error) {
+    console.error('Error updating user password:', error);
+    throw error;
+  }
+  return data;
+};
+
+
 export const fetchProfileByUserId = async (userId) => {
   if (!userId) return null;
   const { data, error } = await supabase

@@ -6,6 +6,9 @@ import {
   verifyEmailOtp, 
   signInWithEmailPassword, 
   signUpWithEmailPassword,
+  sendPasswordResetEmail,
+  verifyRecoveryOtp,
+  updateUserPassword,
   fetchProfileByUserId,
   fetchProfileByStudentId, 
   fetchProfileByEmail,
@@ -24,6 +27,7 @@ import {
   CheckCircle2, 
   KeyRound,
   ArrowRight,
+  ArrowLeft,
   Camera,
   Loader2,
   RefreshCw
@@ -54,6 +58,14 @@ export const AuthPage = ({ initialMode = 'login' }) => {
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Forgot / Reset Password state
+  const [resetStep, setResetStep] = useState('request'); // 'request' | 'verify-new-password'
+  const [resetOtpCode, setResetOtpCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Admin Login state
   const [adminIdentifier, setAdminIdentifier] = useState('');
@@ -258,7 +270,7 @@ export const AuthPage = ({ initialMode = 'login' }) => {
 
       const existingEmail = await fetchProfileByEmail(cleanEmail);
       if (existingEmail) {
-        setError(`Email "${cleanEmail}" is already registered. Please sign in instead.`);
+        setError(`Email "${cleanEmail}" is already registered. Please sign in or use "Forgot Password?" to reset your password.`);
         setIsLoading(false);
         return;
       }
@@ -366,6 +378,82 @@ export const AuthPage = ({ initialMode = 'login' }) => {
     }
   };
 
+  // Step 1: Send Password Reset Link & Recovery Code
+  const handleSendPasswordReset = async (e) => {
+    if (e) e.preventDefault();
+    setError('');
+    setInfoMessage('');
+
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setError('Please provide your registered college email address.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await sendPasswordResetEmail(cleanEmail);
+      setInfoMessage(
+        `Password reset instructions and verification code have been dispatched to ${cleanEmail}. Please check your inbox or spam folder.`
+      );
+      setResetStep('verify-new-password');
+      startResendTimer();
+    } catch (resetErr) {
+      console.error('Password reset request error:', resetErr);
+      setError(
+        resetErr.message || 
+        'Could not send reset instructions. Please check your email or contact campus IT.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Step 2: Verify Recovery Code & Set New Password
+  const handleResetPasswordWithOtp = async (e) => {
+    if (e) e.preventDefault();
+    setError('');
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanCode = resetOtpCode.trim();
+
+    if (!cleanCode || cleanCode.length < 6) {
+      setError('Please enter the 6-digit recovery code sent to your email.');
+      return;
+    }
+    if (!newPassword || newPassword.length < 6) {
+      setError('New password must be at least 6 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match. Please re-enter.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await verifyRecoveryOtp(cleanEmail, cleanCode);
+      await updateUserPassword(newPassword);
+
+      addToast('Password updated successfully! Please sign in with your new password.', 'success');
+      setMode('login');
+      setResetStep('request');
+      setResetOtpCode('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPassword(newPassword);
+      setInfoMessage('Your password has been changed successfully. You can now sign in.');
+    } catch (verifyErr) {
+      console.error('Password update error:', verifyErr);
+      setError(
+        verifyErr.message || 
+        'Could not update password. The recovery code may be invalid or expired. Please request a new code.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Admin / Staff Login (Strict verification against database role)
   const handleAdminSubmit = async (e) => {
     e.preventDefault();
@@ -424,11 +512,15 @@ export const AuthPage = ({ initialMode = 'login' }) => {
           <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight pt-2">
             {portalMode === 'admin' 
               ? 'Security & Staff Portal' 
+              : mode === 'forgot-password'
+              ? 'Reset Your Password'
               : mode === 'login' ? 'Sign In to CampusFind' : 'Create Student Account'}
           </h2>
           <p className="text-xs text-stone-600 max-w-xs mx-auto">
             {portalMode === 'admin'
               ? 'Authorized proctorial board and campus security guard authentication.'
+              : mode === 'forgot-password'
+              ? 'Enter your registered college email to receive a password reset link and recovery code.'
               : mode === 'login' 
               ? 'Sign in with your verified college email to manage reports and track claims.' 
               : 'Register with your college roll number for verified campus lost & found recovery.'}
@@ -480,27 +572,43 @@ export const AuthPage = ({ initialMode = 'login' }) => {
           {/* Student Portal Form */}
           {portalMode === 'student' && (
             <>
-              {/* Sign In vs Register toggle */}
-              <div className="grid grid-cols-2 p-1 bg-stone-100 rounded-xl mb-5 text-xs font-bold">
-                <button
-                  type="button"
-                  onClick={() => { setMode('login'); setError(''); setOtpSent(false); }}
-                  className={`py-2 rounded-lg transition-all ${
-                    mode === 'login' ? 'bg-white text-slate-900 shadow-xs' : 'text-stone-500 hover:text-slate-900'
-                  }`}
-                >
-                  Sign In
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setMode('register'); setError(''); setOtpSent(false); }}
-                  className={`py-2 rounded-lg transition-all ${
-                    mode === 'register' ? 'bg-white text-slate-900 shadow-xs' : 'text-stone-500 hover:text-slate-900'
-                  }`}
-                >
-                  Register
-                </button>
-              </div>
+              {/* Sign In vs Register toggle / Back link if in forgot-password */}
+              {mode === 'forgot-password' ? (
+                <div className="flex items-center justify-between pb-3 mb-4 border-b border-stone-100">
+                  <button
+                    type="button"
+                    onClick={() => { setMode('login'); setError(''); setInfoMessage(''); }}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-stone-600 hover:text-orange-600 transition-colors"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Back to Sign In</span>
+                  </button>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50 px-2.5 py-1 rounded-full border border-orange-200">
+                    Account Recovery
+                  </span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 p-1 bg-stone-100 rounded-xl mb-5 text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => { setMode('login'); setError(''); setOtpSent(false); }}
+                    className={`py-2 rounded-lg transition-all ${
+                      mode === 'login' ? 'bg-white text-slate-900 shadow-xs' : 'text-stone-500 hover:text-slate-900'
+                    }`}
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setMode('register'); setError(''); setOtpSent(false); }}
+                    className={`py-2 rounded-lg transition-all ${
+                      mode === 'register' ? 'bg-white text-slate-900 shadow-xs' : 'text-stone-500 hover:text-slate-900'
+                    }`}
+                  >
+                    Register
+                  </button>
+                </div>
+              )}
 
               {/* Login Method Toggle (OTP vs Password) */}
               {mode === 'login' && !otpSent && (
@@ -517,8 +625,180 @@ export const AuthPage = ({ initialMode = 'login' }) => {
                 </div>
               )}
 
-              {/* CONDITIONAL SCREEN 1: 6-Digit OTP Verification Screen */}
-              {otpSent ? (
+              {/* CONDITIONAL SCREEN 0: Forgot / Reset Password Screen */}
+              {mode === 'forgot-password' ? (
+                <div className="space-y-4">
+                  {resetStep === 'request' ? (
+                    /* Step 1: Request Email Reset */
+                    <form onSubmit={handleSendPasswordReset} className="space-y-4">
+                      <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs text-stone-600 leading-relaxed">
+                        Enter your registered college email below. We'll send you password reset instructions and a 6-digit recovery code.
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-800 mb-1">
+                          Registered College Email <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <Mail className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="your.email@hitech.ac.in"
+                            className="w-full pl-9 pr-3 py-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="pt-2">
+                        <button
+                          type="submit"
+                          disabled={isLoading}
+                          className="w-full py-2.5 px-4 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5"
+                        >
+                          {isLoading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Sending Reset Instructions...</span>
+                            </>
+                          ) : (
+                            <>
+                              <KeyRound className="w-4 h-4" />
+                              <span>Send Reset Link & Code</span>
+                              <ArrowRight className="w-4 h-4" />
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      <div className="text-center pt-1">
+                        <button
+                          type="button"
+                          onClick={() => { setResetStep('verify-new-password'); setError(''); }}
+                          className="text-[11px] font-semibold text-stone-500 hover:text-orange-600 transition-colors"
+                        >
+                          Already received a 6-digit recovery code? Click here
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    /* Step 2: Enter Code & New Password */
+                    <form onSubmit={handleResetPasswordWithOtp} className="space-y-3.5">
+                      <div className="p-3 bg-emerald-50/80 rounded-xl border border-emerald-200 text-xs text-emerald-950">
+                        <span className="font-bold block mb-0.5">Recovery Code Dispatched</span>
+                        <span>Enter the 6-digit code sent to <strong className="font-semibold text-slate-900">{email}</strong> and pick your new password.</span>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-800 mb-1">
+                          6-Digit Recovery Code <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={6}
+                          value={resetOtpCode}
+                          onChange={(e) => setResetOtpCode(e.target.value.replace(/\D/g, ''))}
+                          placeholder="000000"
+                          autoFocus
+                          className="w-full text-center tracking-widest text-xl font-mono py-2 bg-stone-50 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-bold"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-800 mb-1">
+                          New Password <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <Lock className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <input
+                            type={showNewPassword ? 'text' : 'password'}
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder="Min. 6 characters"
+                            minLength={6}
+                            className="w-full pl-9 pr-9 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 p-0.5"
+                          >
+                            {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-800 mb-1">
+                          Confirm New Password <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <Lock className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <input
+                            type={showConfirmPassword ? 'text' : 'password'}
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            placeholder="Re-enter new password"
+                            minLength={6}
+                            className="w-full pl-9 pr-9 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 p-0.5"
+                          >
+                            {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs pt-1">
+                        <button
+                          type="button"
+                          disabled={resendCooldown > 0 || isLoading}
+                          onClick={handleSendPasswordReset}
+                          className="text-stone-500 hover:text-orange-600 disabled:opacity-40 font-semibold flex items-center gap-1"
+                        >
+                          <RefreshCw className={`w-3 h-3 ${resendCooldown > 0 ? 'animate-spin' : ''}`} />
+                          <span>{resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setResetStep('request'); setError(''); }}
+                          className="text-stone-400 hover:text-slate-700"
+                        >
+                          Change Email
+                        </button>
+                      </div>
+
+                      <div className="pt-2">
+                        <button
+                          type="submit"
+                          disabled={isLoading}
+                          className="w-full py-2.5 px-4 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5"
+                        >
+                          {isLoading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Updating Password...</span>
+                            </>
+                          ) : (
+                            <>
+                              <ShieldCheck className="w-4 h-4" />
+                              <span>Set New Password & Sign In</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              ) : otpSent ? (
                 <form onSubmit={handleVerifyOtp} className="space-y-4">
                   <div className="p-3.5 bg-orange-50/60 rounded-xl border border-orange-200/80 text-xs text-orange-950">
                     <span className="font-bold block mb-0.5">Verification Code Dispatched</span>
@@ -738,15 +1018,34 @@ export const AuthPage = ({ initialMode = 'login' }) => {
                       )}
                     </button>
 
-                    <div className="text-center pt-1">
+                    <div className="text-center pt-1 space-y-2">
                       <button
                         type="button"
                         onClick={handleSendOtp}
                         disabled={isLoading}
-                        className="text-[11px] font-semibold text-stone-500 hover:text-orange-600 transition-colors"
+                        className="text-[11px] font-semibold text-stone-500 hover:text-orange-600 transition-colors block mx-auto"
                       >
                         Prefer Email OTP? Click here to send verification code
                       </button>
+
+                      <div className="pt-2 border-t border-stone-100 flex flex-wrap items-center justify-center gap-1.5 text-[11px] text-stone-500">
+                        <span>Already registered?</span>
+                        <button
+                          type="button"
+                          onClick={() => { setMode('login'); setError(''); setInfoMessage(''); }}
+                          className="font-bold text-orange-600 hover:underline"
+                        >
+                          Sign In
+                        </button>
+                        <span>•</span>
+                        <button
+                          type="button"
+                          onClick={() => { setMode('forgot-password'); setError(''); setInfoMessage(''); }}
+                          className="font-bold text-stone-600 hover:text-orange-600 hover:underline"
+                        >
+                          Forgot Password?
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </form>
@@ -789,6 +1088,17 @@ export const AuthPage = ({ initialMode = 'login' }) => {
                       )}
                     </button>
                   </div>
+
+                  <div className="text-center pt-1 border-t border-stone-100 flex flex-wrap items-center justify-center gap-1.5 text-[11px] text-stone-500">
+                    <span>Forgot password or need to reset?</span>
+                    <button
+                      type="button"
+                      onClick={() => { setMode('forgot-password'); setError(''); setInfoMessage(''); }}
+                      className="font-bold text-orange-600 hover:underline"
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
                 </form>
               ) : (
                 /* CONDITIONAL SCREEN 4: Student Password Login */
@@ -811,9 +1121,18 @@ export const AuthPage = ({ initialMode = 'login' }) => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-800 mb-1">
-                      Password <span className="text-rose-500">*</span>
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-slate-800">
+                        Password <span className="text-rose-500">*</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => { setMode('forgot-password'); setError(''); setInfoMessage(''); }}
+                        className="text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:underline transition-colors"
+                      >
+                        Forgot Password?
+                      </button>
+                    </div>
                     <div className="relative">
                       <Lock className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                       <input
@@ -851,6 +1170,17 @@ export const AuthPage = ({ initialMode = 'login' }) => {
                           <ArrowRight className="w-4 h-4" />
                         </>
                       )}
+                    </button>
+                  </div>
+
+                  <div className="text-center pt-1 border-t border-stone-100 flex flex-wrap items-center justify-center gap-1.5 text-[11px] text-stone-500">
+                    <span>New student?</span>
+                    <button
+                      type="button"
+                      onClick={() => { setMode('register'); setError(''); setInfoMessage(''); }}
+                      className="font-bold text-orange-600 hover:underline"
+                    >
+                      Create Account
                     </button>
                   </div>
                 </form>

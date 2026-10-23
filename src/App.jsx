@@ -56,6 +56,8 @@ const AppContent = () => {
         return <AuthPage initialMode="login" />;
       case 'register':
         return <AuthPage initialMode="register" />;
+      case 'forgot-password':
+        return <AuthPage initialMode="forgot-password" />;
       default:
         return <HomePage />;
     }
