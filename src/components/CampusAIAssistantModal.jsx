@@ -5,19 +5,16 @@ import {
   X, 
   Send, 
   Sparkles, 
-  HelpCircle, 
   ArrowRight, 
-  PhoneCall, 
   Search, 
-  ShieldCheck,
-  CheckCircle2
+  ShieldCheck
 } from 'lucide-react';
 
 export const CAMPUS_FAQS = [
   {
     id: 1,
     question: 'Where can I report a lost or found item?',
-    answer: 'You can report a lost or found belonging directly using the top navigation bar. Click "+ Lost Something?" or "+ Found an Item?". Once submitted, your report is saved in Supabase and matched with existing entries.',
+    answer: 'You can report a lost or found belonging directly using the top navigation bar. Click "Report Lost Item" or "Report Found Item". Once submitted, your report is saved in Supabase and matched with existing entries.',
     actionLabel: 'Report Lost Item',
     actionView: 'report-lost'
   },
@@ -38,7 +35,7 @@ export const CAMPUS_FAQS = [
   {
     id: 4,
     question: 'How do I report a broken projector, damaged facility, or Wi-Fi issue?',
-    answer: 'Use the new "Campus Issues" section in the menu. Fill in the building, room number, category (Projector, Wi-Fi, Infrastructure, Cleanliness), and issue description. The estate and IT maintenance teams will be notified.',
+    answer: 'Use the "Campus Issues" button in the top navigation. Fill in the building, room number, category (Projector, Wi-Fi, Infrastructure, Cleanliness), and issue description. The estate and IT maintenance teams will be notified.',
     actionLabel: 'Report Campus Issue',
     actionView: 'campus-issues'
   },
@@ -52,14 +49,14 @@ export const CAMPUS_FAQS = [
   {
     id: 6,
     question: 'How do I contact the authorized campus helpdesk?',
-    answer: 'Hi-Tech Institute maintains a 24/7 Security & Proctorial Desk at Main Gate 1 (Campus Intercom Ext. 101). You can also click the "Help Desk" button in the top navigation to file an official digital inquiry.',
-    actionLabel: 'Open Help Desk Inquiry',
-    actionModal: 'inquiry'
+    answer: 'Hi-Tech Institute maintains a 24/7 Security & Proctorial Desk at Main Gate 1 (Campus Intercom Ext. 101). You can also click "Staff Portal → Campus Desks" in the navigation to view all custody points.',
+    actionLabel: 'View Campus Desks',
+    actionModal: 'security-hubs'
   },
   {
     id: 7,
     question: 'Where can I find official college notices or campus information?',
-    answer: 'Verified campus security desk counters, custody points, and proctorial notices are displayed under "Campus Desks" in the top bar. You can also view recovery protocols in the footer of this portal.',
+    answer: 'Verified campus security desk counters, custody points, and proctorial notices are displayed under "Staff Portal → Campus Desks" in the main navigation. You can also view recovery protocols in the footer of this portal.',
     actionLabel: 'View Campus Desks',
     actionModal: 'security-hubs'
   }
@@ -70,17 +67,15 @@ export const CampusAIAssistantModal = ({ isOpen, onClose }) => {
   const [messages, setMessages] = useState([
     {
       sender: 'ai',
-      text: 'Hello! I am your Campus Hub Assistant. You can click any of the official campus FAQs below or type your question to get verified assistance.',
+      text: 'Hello! I am your 3D Campus AI Assistant. You can click any of the official campus FAQs below or type your question to get verified assistance.',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
   const [inputQuery, setInputQuery] = useState('');
-  const [selectedFaq, setSelectedFaq] = useState(null);
 
   if (!isOpen) return null;
 
   const handleSelectFaq = (faq) => {
-    setSelectedFaq(faq);
     setMessages((prev) => [
       ...prev,
       {
@@ -128,10 +123,10 @@ export const CampusAIAssistantModal = ({ isOpen, onClose }) => {
     } else {
       aiMsg = {
         sender: 'ai',
-        text: `I could not find a verified automated answer for "${inputQuery}". To avoid providing inaccurate details, please reach out to the authorized Campus Security Desk at Gate 1 (Intercom Ext. 101) or submit an official Help Desk inquiry.`,
+        text: `I could not find an automated answer for "${inputQuery}". For security and accuracy, please contact the authorized Security Desk at Gate 1 (Intercom Ext. 101) or review custody desks under Staff Portal.`,
         action: {
-          actionLabel: 'Contact Campus Help Desk',
-          actionModal: 'inquiry'
+          actionLabel: 'View Campus Desks',
+          actionModal: 'security-hubs'
         },
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
@@ -153,52 +148,61 @@ export const CampusAIAssistantModal = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl max-w-2xl w-full h-[620px] max-h-[90vh] flex flex-col shadow-2xl border border-stone-200 overflow-hidden">
+    <>
+      {/* Mobile Backdrop Overlay (only on mobile screens) */}
+      <div 
+        onClick={onClose}
+        className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-xs sm:hidden animate-in fade-in"
+      />
+
+      {/* Floating Chat Panel Docked Above Floating Robot on Desktop, Modal on Mobile */}
+      <div className="fixed inset-x-3 bottom-3 sm:inset-auto sm:bottom-28 sm:right-7 z-50 w-auto sm:w-[420px] max-w-[calc(100vw-1.5rem)] sm:max-w-md h-[560px] sm:h-[580px] max-h-[85vh] bg-white dark:bg-slate-900 rounded-3xl flex flex-col shadow-2xl border border-stone-200 dark:border-slate-800 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-250">
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white px-5 py-4 flex items-center justify-between border-b border-slate-800">
+        <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950 text-white px-5 py-3.5 flex items-center justify-between border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-orange-500/20 border border-orange-500/40 text-orange-400 flex items-center justify-center shadow-xs">
+            <div className="w-9 h-9 rounded-2xl bg-orange-500/20 border border-orange-500/40 text-orange-400 flex items-center justify-center shadow-xs">
               <Bot className="w-5 h-5 text-orange-400" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-extrabold text-sm sm:text-base tracking-tight">Campus AI Assistant</h3>
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-orange-500/30 text-orange-300 border border-orange-400/30">
-                  Verified FAQs
+                <h3 className="font-extrabold text-sm tracking-tight">Campus AI Assistant</h3>
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Online
                 </span>
               </div>
               <p className="text-[11px] text-stone-300">
-                Official guide for Lost & Found, Claims, and Campus Maintenance
+                Official guide for Lost & Found, Claims & Issues
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-1.5 text-stone-400 hover:text-white rounded-xl hover:bg-white/10 transition-colors"
+            aria-label="Close Assistant"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Chat / FAQs Body */}
-        <div className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-4 bg-stone-50/50">
+        <div className="flex-1 p-3.5 sm:p-4 overflow-y-auto space-y-3.5 bg-stone-50/50 dark:bg-slate-950/40 overscroll-contain">
           
           {/* Quick FAQ Suggestion Pills */}
-          <div className="bg-white rounded-2xl p-4 border border-stone-200 shadow-2xs space-y-2.5">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
-              <Sparkles className="w-3.5 h-3.5 text-orange-600" />
-              <span>Frequently Asked Campus Questions (Click to test):</span>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-3 border border-stone-200 dark:border-slate-800 shadow-2xs space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
+              <Sparkles className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
+              <span>Campus Quick Answers:</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {CAMPUS_FAQS.map((faq) => (
+            <div className="grid grid-cols-1 gap-1.5">
+              {CAMPUS_FAQS.slice(0, 4).map((faq) => (
                 <button
                   key={faq.id}
                   onClick={() => handleSelectFaq(faq)}
-                  className="text-left p-2.5 rounded-xl border border-stone-200 hover:border-orange-300 hover:bg-orange-50/40 transition-all text-[11px] text-slate-700 font-medium flex items-center justify-between group"
+                  className="text-left p-2 rounded-xl border border-stone-200 dark:border-slate-800 hover:border-orange-300 dark:hover:border-orange-600 hover:bg-orange-50/50 dark:hover:bg-orange-950/30 transition-all text-[11px] text-slate-700 dark:text-slate-200 font-medium flex items-center justify-between group"
                 >
-                  <span className="line-clamp-2">{faq.question}</span>
+                  <span className="line-clamp-1">{faq.question}</span>
                   <ArrowRight className="w-3 h-3 text-stone-400 group-hover:text-orange-600 shrink-0 ml-1.5 transition-colors" />
                 </button>
               ))}
@@ -206,33 +210,33 @@ export const CampusAIAssistantModal = ({ isOpen, onClose }) => {
           </div>
 
           {/* Conversation history */}
-          <div className="space-y-3 pt-2">
+          <div className="space-y-3 pt-1">
             {messages.map((msg, idx) => (
               <div
                 key={idx}
-                className={`flex gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex gap-2.5 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {msg.sender === 'ai' && (
-                  <div className="w-7 h-7 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-7 h-7 rounded-xl bg-orange-100 dark:bg-orange-950/80 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0 mt-0.5">
                     <Bot className="w-4 h-4" />
                   </div>
                 )}
                 <div
-                  className={`max-w-[82%] rounded-2xl p-3.5 text-xs leading-relaxed shadow-2xs ${
+                  className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed shadow-2xs ${
                     msg.sender === 'user'
                       ? 'bg-orange-600 text-white rounded-br-xs font-medium'
-                      : 'bg-white text-slate-800 border border-stone-200 rounded-bl-xs'
+                      : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 border border-stone-200 dark:border-slate-800 rounded-bl-xs'
                   }`}
                 >
                   <div className="whitespace-pre-line">{msg.text}</div>
 
                   {/* Contextual Action Button */}
                   {msg.action && (
-                    <div className="mt-3 pt-2.5 border-t border-stone-100 flex items-center justify-between">
-                      <span className="text-[10px] text-stone-400 font-semibold">Suggested Action:</span>
+                    <div className="mt-2.5 pt-2 border-t border-stone-100 dark:border-slate-800 flex items-center justify-between">
+                      <span className="text-[10px] text-stone-400 dark:text-stone-500 font-semibold">Action:</span>
                       <button
                         onClick={() => handleActionClick(msg.action)}
-                        className="px-3 py-1 bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-700 font-bold text-[11px] rounded-lg transition-colors flex items-center gap-1 shadow-2xs"
+                        className="px-2.5 py-1 bg-orange-50 dark:bg-orange-950/80 hover:bg-orange-100 dark:hover:bg-orange-900/80 border border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-300 font-bold text-[10px] rounded-lg transition-colors flex items-center gap-1 shadow-2xs"
                       >
                         <span>{msg.action.actionLabel}</span>
                         <ArrowRight className="w-3 h-3" />
@@ -240,7 +244,7 @@ export const CampusAIAssistantModal = ({ isOpen, onClose }) => {
                     </div>
                   )}
 
-                  <div className={`text-[9px] mt-1.5 text-right ${msg.sender === 'user' ? 'text-orange-100' : 'text-stone-400'}`}>
+                  <div className={`text-[9px] mt-1 text-right ${msg.sender === 'user' ? 'text-orange-100' : 'text-stone-400 dark:text-stone-500'}`}>
                     {msg.timestamp}
                   </div>
                 </div>
@@ -251,34 +255,34 @@ export const CampusAIAssistantModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* Input Bar */}
-        <div className="p-3 sm:p-4 bg-white border-t border-stone-200">
+        <div className="p-3 bg-white dark:bg-slate-900 border-t border-stone-200 dark:border-slate-800 shrink-0">
           <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
             <div className="relative flex-1">
-              <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={inputQuery}
                 onChange={(e) => setInputQuery(e.target.value)}
                 placeholder="Ask about lost items, claims, facility repairs..."
-                className="w-full pl-9 pr-3 py-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                className="w-full pl-9 pr-3 py-2 text-xs bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:border-orange-500 font-medium text-slate-900 dark:text-slate-100"
               />
             </div>
             <button
               type="submit"
               disabled={!inputQuery.trim()}
-              className="px-4 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-40 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
+              className="px-3.5 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-40 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-1"
             >
               <span>Ask</span>
               <Send className="w-3.5 h-3.5" />
             </button>
           </form>
-          <div className="text-[10px] text-stone-400 text-center mt-2 flex items-center justify-center gap-1">
-            <ShieldCheck className="w-3 h-3 text-emerald-600" />
-            <span>Strictly answers from approved college policies and verified campus records.</span>
+          <div className="text-[10px] text-stone-400 dark:text-stone-500 text-center mt-1.5 flex items-center justify-center gap-1">
+            <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+            <span>Answers strictly from verified campus policies & recovery desks.</span>
           </div>
         </div>
 
       </div>
-    </div>
+    </>
   );
 };

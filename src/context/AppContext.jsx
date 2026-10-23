@@ -93,6 +93,42 @@ export const AppProvider = ({ children }) => {
   const [showCollegeElectionModal, setShowCollegeElectionModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
+  // Theme state: 'light' | 'dark'
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = localStorage.getItem('campusfind_theme');
+      if (saved === 'dark' || saved === 'light') return saved;
+      if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        return 'dark';
+      }
+    } catch {
+      // fallback
+    }
+    return 'light';
+  });
+
+  useEffect(() => {
+    try {
+      const root = document.documentElement;
+      if (theme === 'dark') {
+        root.classList.add('dark');
+        root.setAttribute('data-theme', 'dark');
+        document.body.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+        root.setAttribute('data-theme', 'light');
+        document.body.classList.remove('dark');
+      }
+      localStorage.setItem('campusfind_theme', theme);
+    } catch (e) {
+      console.warn('Error applying theme:', e);
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
   // Notifications
   const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
 
@@ -727,7 +763,10 @@ export const AppProvider = ({ children }) => {
         uploadUserAvatar,
         resetDemoData,
         isSupabaseConnected,
-        isLoadingBackend
+        isLoadingBackend,
+        theme,
+        setTheme,
+        toggleTheme
       }}
     >
       {children}

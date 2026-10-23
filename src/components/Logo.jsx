@@ -68,15 +68,15 @@ export const Logo = ({ size = 'normal', showSubtitle = true, inverted = false, c
             : isSmall 
             ? 'text-base' 
             : 'text-lg sm:text-xl'
-        } ${inverted ? 'text-white' : 'text-slate-900'}`}>
+        } ${inverted ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
           <span>Campus</span>
-          <span className="text-orange-600">Find</span>
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-orange-600 ml-1 mb-0.5"></span>
+          <span className="text-orange-600 dark:text-orange-500">Find</span>
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-orange-600 dark:bg-orange-500 ml-1 mb-0.5"></span>
         </div>
 
         {showSubtitle && (
           <span className={`text-[10px] sm:text-[11px] font-semibold tracking-wider uppercase mt-0.5 ${
-            inverted ? 'text-stone-400' : 'text-stone-700'
+            inverted ? 'text-stone-400' : 'text-stone-600 dark:text-stone-400'
           }`}>
             Hi-Tech Institute of Engineering, Ghaziabad
           </span>

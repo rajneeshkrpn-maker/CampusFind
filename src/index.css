@@ -10,6 +10,7 @@
     background-color: #fbfbfa;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
 }
 
@@ -42,7 +43,7 @@
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.06), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
 }
 
-/* Custom scrollbar for modern feel */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 7px;
   height: 7px;
@@ -56,4 +57,176 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* ===================================================================
+   DARK THEME SYSTEM
+   =================================================================== */
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #0b0f19 !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark * {
+  border-color: #1e293b;
+}
+
+html.dark .bg-white {
+  background-color: #0f172a !important;
+  color: #f8fafc;
+}
+
+html.dark .bg-stone-50,
+html.dark [class*="fbfbfa"] {
+  background-color: #0b0f19 !important;
+}
+
+html.dark .bg-stone-100 {
+  background-color: #1e293b !important;
+}
+
+html.dark .bg-stone-200 {
+  background-color: #334155 !important;
+}
+
+html.dark .border-stone-100,
+html.dark .border-stone-200,
+html.dark .border-stone-300 {
+  border-color: #1e293b !important;
+}
+
+html.dark .text-slate-900,
+html.dark .text-slate-800 {
+  color: #f8fafc !important;
+}
+
+html.dark .text-slate-700,
+html.dark .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+html.dark .text-stone-700,
+html.dark .text-stone-600,
+html.dark .text-stone-500,
+html.dark .text-stone-400 {
+  color: #94a3b8 !important;
+}
+
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+html.dark .bg-campus-pattern {
+  background-color: #0b0f19 !important;
+  background-image: radial-gradient(rgba(234, 88, 12, 0.08) 1px, transparent 1px),
+                    radial-gradient(rgba(99, 102, 241, 0.06) 1px, transparent 1px);
+}
+
+html.dark .bg-geometric-lattice {
+  background-color: #0b0f19 !important;
+  background-image: radial-gradient(#1e293b 0.75px, transparent 0.75px), radial-gradient(#1e293b 0.75px, #0b0f19 0.75px);
+}
+
+html.dark ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+html.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* ===================================================================
+   3D FLOATING ROBOT AI ASSISTANT ANIMATIONS
+   =================================================================== */
+
+@keyframes float-robot {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(-1deg);
+  }
+}
+
+@keyframes robot-shadow {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(0.82);
+    opacity: 0.18;
+  }
+}
+
+@keyframes eye-blink {
+  0%, 94%, 98%, 100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.08);
+  }
+}
+
+@keyframes antenna-pulse {
+  0%, 100% {
+    opacity: 0.7;
+    filter: drop-shadow(0 0 2px #06b6d4);
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 8px #22d3ee);
+  }
+}
+
+@keyframes subtle-glow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(234, 88, 12, 0.25), 0 0 30px rgba(99, 102, 241, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(234, 88, 12, 0.4), 0 0 45px rgba(99, 102, 241, 0.25);
+  }
+}
+
+.animate-float-robot {
+  animation: float-robot 4.5s ease-in-out infinite;
+}
+
+.animate-robot-shadow {
+  animation: robot-shadow 4.5s ease-in-out infinite;
+}
+
+.animate-eye-blink {
+  animation: eye-blink 4.5s infinite;
+  transform-origin: center;
+}
+
+.animate-antenna-pulse {
+  animation: antenna-pulse 2.2s ease-in-out infinite;
+}
+
+.animate-subtle-glow {
+  animation: subtle-glow 3s ease-in-out infinite;
+}
+
+/* Respect user's reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-robot,
+  .animate-robot-shadow,
+  .animate-eye-blink,
+  .animate-antenna-pulse,
+  .animate-subtle-glow {
+    animation: none !important;
+  }
 }

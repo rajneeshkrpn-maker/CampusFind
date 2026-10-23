@@ -10,6 +10,7 @@ import { InquiryModal } from './components/InquiryModal';
 import { CampusAIAssistantModal } from './components/CampusAIAssistantModal';
 import { CollegeElectionModal } from './components/CollegeElectionModal';
 import { ProfileModal } from './components/ProfileModal';
+import { FloatingAIAssistant } from './components/FloatingAIAssistant';
 import { HomePage } from './pages/HomePage';
 import { BrowsePage } from './pages/BrowsePage';
 import { ReportLostPage } from './pages/ReportLostPage';
@@ -61,7 +62,7 @@ const AppContent = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#fbfbfa] text-slate-800 font-sans selection:bg-orange-100 selection:text-orange-900">
+    <div className="min-h-screen flex flex-col bg-[#fbfbfa] dark:bg-[#0b0f19] text-slate-800 dark:text-slate-100 font-sans selection:bg-orange-100 selection:text-orange-900 dark:selection:bg-orange-950 dark:selection:text-orange-200 transition-colors duration-200">
       {/* Top Navbar */}
       <Navbar />
 
@@ -90,6 +91,9 @@ const AppContent = () => {
         isOpen={showProfileModal} 
         onClose={() => setShowProfileModal(false)} 
       />
+
+      {/* Floating 3D Robot AI Assistant */}
+      <FloatingAIAssistant />
 
       {/* Toast Feedback Notifications */}
       <ToastContainer />

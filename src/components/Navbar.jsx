@@ -2,8 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Logo } from './Logo';
 import { 
-  Search, 
-  Lock, 
+  Home,
+  Search,
+  PlusCircle,
+  Compass,
+  LayoutDashboard,
+  Briefcase,
   ChevronDown, 
   Menu, 
   X, 
@@ -12,16 +16,16 @@ import {
   CheckCheck,
   User,
   ShieldCheck,
-  Package,
-  Layers,
+  Lock,
   ArrowRight,
-  Bot,
   Vote,
   Wrench,
-  Sparkles,
+  Sun,
+  Moon,
   LogOut,
   LogIn,
-  UserPlus
+  UserPlus,
+  AlertTriangle
 } from 'lucide-react';
 
 export const Navbar = () => {
@@ -31,28 +35,28 @@ export const Navbar = () => {
     currentUser, 
     logout,
     setShowProfileModal,
-    searchQuery, 
-    setSearchQuery, 
     notifications, 
     markNotificationRead,
     markAllNotificationsRead,
     setShowSecurityHubsModal,
-    setShowInquiryModal,
-    setShowAIAssistantModal,
     setShowCollegeElectionModal,
-    isSupabaseConnected
+    theme,
+    toggleTheme
   } = useApp();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [staffDropdownOpen, setStaffDropdownOpen] = useState(false);
+  const [mobileStaffOpen, setMobileStaffOpen] = useState(false);
 
   const notificationRef = useRef(null);
   const profileRef = useRef(null);
+  const staffRef = useRef(null);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  // Handle click-outside to dismiss notification dropdown or profile dropdown
+  // Handle click-outside to dismiss notification, profile, or staff dropdowns
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (notificationRef.current && !notificationRef.current.contains(event.target)) {
@@ -60,6 +64,9 @@ export const Navbar = () => {
       }
       if (profileRef.current && !profileRef.current.contains(event.target)) {
         setProfileDropdownOpen(false);
+      }
+      if (staffRef.current && !staffRef.current.contains(event.target)) {
+        setStaffDropdownOpen(false);
       }
     };
 
@@ -71,148 +78,83 @@ export const Navbar = () => {
     };
   }, []);
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      setCurrentView('browse');
-    }
-  };
-
-  const navItems = [
-    { id: 'home', label: 'Home', hasDropdown: false },
-    { id: 'browse', label: 'Browse Items', hasDropdown: true },
-    { id: 'report-lost', label: 'Report Lost Item', hasDropdown: false, highlight: 'lost' },
-    { id: 'report-found', label: 'Report Found Item', hasDropdown: false, highlight: 'found' },
-    { id: 'campus-issues', label: 'Campus Issues', hasDropdown: false, badge: 'Hub' },
-    { id: 'dashboard', label: 'My Dashboard', hasDropdown: true },
-    { id: 'admin', label: 'Security Desk', hasDropdown: false, badge: 'Staff' }
+  // Main navigation items in exact requested order
+  const mainNavItems = [
+    { id: 'home', label: 'Home', icon: Home },
+    { id: 'report-lost', label: 'Report Lost Item', icon: Search },
+    { id: 'report-found', label: 'Report Found Item', icon: PlusCircle },
+    { id: 'browse', label: 'Browse Items', icon: Compass },
+    { id: 'dashboard', label: 'My Dashboard', icon: LayoutDashboard }
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200">
+    <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-stone-200 dark:border-slate-800 transition-colors duration-200">
       
-      {/* Top Tier: Academic Brand, Search, AI Assistant, Election, Staff Lock, Notifications, Profile */}
-      <div className="border-b border-stone-100">
+      {/* ===================================================================
+          FIRST ROW: Top Header (Logo, Campus Issues, Alerts, Theme, Auth)
+          =================================================================== */}
+      <div className="border-b border-stone-100 dark:border-slate-800/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20 gap-3 sm:gap-6">
             
-            {/* CampusFind Brand Logo */}
+            {/* Left Section: CampusFind Brand Logo & Subtitle */}
             <div 
               onClick={() => setCurrentView('home')}
-              className="cursor-pointer shrink-0 group select-none"
+              className="cursor-pointer shrink-0 select-none group"
             >
               <Logo />
             </div>
 
-            {/* Desktop Center Utilities */}
-            <div className="hidden lg:flex items-center gap-4 text-[13px] font-medium text-slate-600">
-              <button 
-                onClick={() => setCurrentView('browse')} 
-                className="hover:text-slate-900 transition-colors"
-              >
-                Directory
-              </button>
-              <button 
-                onClick={() => setShowSecurityHubsModal(true)} 
-                className="hover:text-slate-900 transition-colors flex items-center gap-1.5"
-              >
-                <MapPin className="w-3.5 h-3.5 text-orange-600" />
-                Campus Desks
-              </button>
-
-              {/* Campus AI Assistant Button */}
-              <button
-                onClick={() => setShowAIAssistantModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 hover:border-indigo-300 transition-all shadow-2xs group"
-                title="Ask Campus Hub AI Assistant"
-              >
-                <Bot className="w-3.5 h-3.5 text-indigo-600 group-hover:scale-110 transition-transform" />
-                <span>AI Assistant</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-              </button>
-
-              {/* College Election - Coming Soon */}
-              <button
-                onClick={() => setShowCollegeElectionModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition-all shadow-2xs"
-                title="College Election System - Coming Soon"
-              >
-                <Vote className="w-3.5 h-3.5 text-amber-600" />
-                <span>Election</span>
-                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-200 text-amber-900">Soon</span>
-              </button>
-
-              {/* Staff Lock Pill (Dedicated Security Guard & Proctor Information) */}
-              <button 
-                onClick={() => setCurrentView('admin')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all border ${
-                  currentView === 'admin' 
-                    ? 'bg-slate-900 text-white border-slate-900 shadow-xs' 
-                    : 'bg-stone-50 text-slate-700 border-stone-200 hover:border-slate-300 hover:bg-stone-100'
-                }`}
-                title="Security Guard & Staff Desk Information"
-              >
-                <span>Staff Portal</span>
-                <Lock className="w-3 h-3 text-slate-400" />
-              </button>
-
-              {/* Campus Help Desk Inquiry Button */}
-              <button
-                onClick={() => setShowInquiryModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-stone-50 text-slate-700 border border-stone-200 hover:border-orange-300 hover:text-orange-700 hover:bg-orange-50 transition-all"
-                title="Submit Lost & Found Help Desk Inquiry"
-              >
-                <span>Help Desk</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500" title="Supabase Connected" />
-              </button>
-            </div>
-
-            {/* Search Input Bar */}
-            <form onSubmit={handleSearchSubmit} className="hidden md:flex items-center relative flex-1 max-w-xs">
-              <Search className="w-4 h-4 text-stone-400 absolute left-3.5 pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search items, tags, places..."
-                className="w-full pl-9 pr-3 py-1.5 text-xs bg-stone-50 hover:bg-stone-100/80 focus:bg-white border border-stone-200 rounded-full focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all placeholder:text-stone-400 font-medium"
-              />
-            </form>
-
-            {/* Right Controls: Scrollable Notifications + Student Profile */}
-            <div className="flex items-center gap-2.5 sm:gap-4">
+            {/* Right Section: Campus Issues -> Bell -> Theme -> Log In / Sign Up */}
+            <div className="flex items-center gap-2 sm:gap-3">
               
-              {/* Notification Bell */}
+              {/* 1. Prominent "Campus Issues" Button */}
+              <button
+                onClick={() => setCurrentView('campus-issues')}
+                className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border shadow-2xs ${
+                  currentView === 'campus-issues'
+                    ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-xs'
+                    : 'bg-amber-50/80 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 border-amber-200/80 dark:border-amber-800/60 hover:bg-amber-100 dark:hover:bg-amber-900/60'
+                }`}
+                title="Report campus infrastructure, IT, or facility issues"
+              >
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span className="hidden sm:inline">Campus Issues</span>
+                <span className="sm:hidden">Issues</span>
+                <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-amber-200/80 dark:bg-amber-800/80 text-amber-900 dark:text-amber-200 hidden md:inline">
+                  Hub
+                </span>
+              </button>
+
+              {/* 2. Notification Bell Icon */}
               <div className="relative" ref={notificationRef}>
                 <button
                   onClick={() => setNotificationsOpen(!notificationsOpen)}
-                  className={`p-2.5 rounded-full transition-all relative ${
+                  className={`p-2 sm:p-2.5 rounded-full transition-all relative ${
                     notificationsOpen 
-                      ? 'bg-stone-100 text-slate-900 ring-2 ring-stone-200' 
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-stone-100'
+                      ? 'bg-stone-100 dark:bg-slate-800 text-slate-900 dark:text-white ring-2 ring-stone-200 dark:ring-slate-700' 
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-slate-800'
                   }`}
                   aria-label="View Campus Notifications"
                   title="Campus Notifications"
                 >
                   <Bell className="w-4 h-4" />
                   {unreadCount > 0 && (
-                    <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
+                    <span className="absolute top-1 right-1 flex h-2.5 w-2.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-600 ring-2 ring-white"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-600 ring-2 ring-white dark:ring-slate-900"></span>
                     </span>
                   )}
                 </button>
 
-                {/* Scrollable Notification Dropdown / Slide */}
+                {/* Notification Dropdown Panel */}
                 {notificationsOpen && (
-                  <div className="absolute right-0 mt-2.5 w-[calc(100vw-2rem)] sm:w-96 bg-white rounded-2xl shadow-2xl border border-stone-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
-                    
-                    {/* Notification Header */}
-                    <div className="flex items-center justify-between px-4 py-3 bg-stone-50/80 border-b border-stone-100">
+                  <div className="absolute right-0 mt-2.5 w-[calc(100vw-2rem)] sm:w-96 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-stone-200 dark:border-slate-800 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                    <div className="flex items-center justify-between px-4 py-3 bg-stone-50/80 dark:bg-slate-800/60 border-b border-stone-100 dark:border-slate-800">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-900">Campus Alerts</span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">Campus Alerts</span>
                         {unreadCount > 0 && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-800">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950 text-orange-800 dark:text-orange-300">
                             {unreadCount} new
                           </span>
                         )}
@@ -220,7 +162,7 @@ export const Navbar = () => {
                       {unreadCount > 0 && (
                         <button
                           onClick={markAllNotificationsRead}
-                          className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1 transition-colors"
+                          className="text-[11px] font-semibold text-orange-600 dark:text-orange-400 hover:text-orange-700 flex items-center gap-1 transition-colors"
                         >
                           <CheckCheck className="w-3.5 h-3.5" />
                           <span>Mark all read</span>
@@ -228,8 +170,7 @@ export const Navbar = () => {
                       )}
                     </div>
 
-                    {/* Scrollable Notifications List */}
-                    <div className="max-h-80 sm:max-h-96 overflow-y-auto divide-y divide-stone-100 overscroll-contain">
+                    <div className="max-h-80 sm:max-h-96 overflow-y-auto divide-y divide-stone-100 dark:divide-slate-800 overscroll-contain">
                       {notifications.map((n) => (
                         <div
                           key={n.id}
@@ -242,8 +183,8 @@ export const Navbar = () => {
                             }
                             setNotificationsOpen(false);
                           }}
-                          className={`p-3.5 text-xs cursor-pointer hover:bg-stone-50 transition-colors ${
-                            !n.read ? 'bg-orange-50/30' : 'bg-white'
+                          className={`p-3.5 text-xs cursor-pointer hover:bg-stone-50 dark:hover:bg-slate-800/50 transition-colors ${
+                            !n.read ? 'bg-orange-50/40 dark:bg-orange-950/20' : 'bg-white dark:bg-slate-900'
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2 mb-1">
@@ -251,60 +192,73 @@ export const Navbar = () => {
                               {!n.read && (
                                 <span className="w-1.5 h-1.5 rounded-full bg-orange-600 shrink-0"></span>
                               )}
-                              <span className="font-bold text-slate-900 text-xs">{n.title}</span>
+                              <span className="font-bold text-slate-900 dark:text-slate-100 text-xs">{n.title}</span>
                             </div>
-                            <span className="text-[10px] text-stone-400 shrink-0 font-medium">{n.time}</span>
+                            <span className="text-[10px] text-stone-400 dark:text-stone-500 shrink-0 font-medium">{n.time}</span>
                           </div>
-                          <p className="text-stone-600 text-[11px] leading-relaxed pl-3">
+                          <p className="text-stone-600 dark:text-stone-300 text-[11px] leading-relaxed pl-3">
                             {n.message}
                           </p>
                         </div>
                       ))}
                     </div>
 
-                    {/* Notification Footer */}
-                    <div className="p-2.5 bg-stone-50 border-t border-stone-100 text-center">
+                    <div className="p-2.5 bg-stone-50 dark:bg-slate-800/40 border-t border-stone-100 dark:border-slate-800 text-center">
                       <button
                         onClick={() => {
                           setCurrentView('dashboard');
                           setNotificationsOpen(false);
                         }}
-                        className="text-[11px] font-bold text-slate-700 hover:text-orange-600 transition-colors"
+                        className="text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
                       >
                         Open Student Activity Center →
                       </button>
                     </div>
-
                   </div>
                 )}
               </div>
 
-              {/* Public Visitor (Log In / Sign Up) vs Authenticated User Profile */}
+              {/* 3. Dark/Light Theme Toggle (Positioned immediately beside notification icon) */}
+              <button
+                onClick={toggleTheme}
+                aria-label={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+                title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+                className="p-2 sm:p-2.5 rounded-full text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-slate-800 transition-all border border-stone-200/60 dark:border-slate-700/60 shadow-2xs"
+              >
+                {theme === 'dark' ? (
+                  <Sun className="w-4 h-4 text-amber-400 hover:rotate-45 transition-transform" />
+                ) : (
+                  <Moon className="w-4 h-4 text-slate-700 hover:-rotate-12 transition-transform" />
+                )}
+              </button>
+
+              {/* 4. Login & Sign Up Actions (Aligned on one horizontal line on desktop) */}
               {!currentUser ? (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2">
                   <button
                     onClick={() => setCurrentView('login')}
-                    className="px-3 sm:px-4 py-1.5 text-xs font-bold text-slate-700 hover:text-slate-950 border border-stone-200 hover:border-slate-300 rounded-full bg-stone-50 hover:bg-stone-100 transition-all shadow-2xs flex items-center gap-1.5"
+                    className="px-3 sm:px-4 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white border border-stone-200 dark:border-slate-700 rounded-full bg-stone-50 dark:bg-slate-800 hover:bg-stone-100 dark:hover:bg-slate-700/80 transition-all shadow-2xs flex items-center gap-1.5"
                   >
-                    <LogIn className="w-3.5 h-3.5 text-slate-500" />
+                    <LogIn className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                     <span>Log In</span>
                   </button>
                   <button
                     onClick={() => setCurrentView('register')}
-                    className="px-3 sm:px-4 py-1.5 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-full transition-all shadow-xs flex items-center gap-1.5"
+                    className="px-3.5 sm:px-4 py-1.5 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-full transition-all shadow-xs flex items-center gap-1.5"
                   >
                     <UserPlus className="w-3.5 h-3.5" />
                     <span>Sign Up</span>
                   </button>
                 </div>
               ) : (
+                /* Authenticated User Profile Pill & Dropdown */
                 <div className="relative" ref={profileRef}>
                   <button
                     onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                    className="flex items-center gap-2.5 p-1 sm:pl-2 sm:pr-3 sm:py-1 rounded-full bg-stone-100/90 hover:bg-stone-200/80 border border-stone-200/90 transition-all text-left group shadow-2xs"
+                    className="flex items-center gap-2 p-1 sm:pl-2 sm:pr-3 sm:py-1 rounded-full bg-stone-100/90 dark:bg-slate-800 hover:bg-stone-200/80 dark:hover:bg-slate-700 border border-stone-200/90 dark:border-slate-700 transition-all text-left shadow-2xs group"
                     aria-label="Account Menu"
                   >
-                    <div className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden ring-2 ring-white shadow-xs shrink-0 bg-stone-200 flex items-center justify-center">
+                    <div className="relative w-8 h-8 rounded-full overflow-hidden ring-2 ring-white dark:ring-slate-900 shadow-xs shrink-0 bg-stone-200 dark:bg-slate-700 flex items-center justify-center">
                       {currentUser?.avatar ? (
                         <img
                           src={currentUser.avatar}
@@ -316,30 +270,29 @@ export const Navbar = () => {
                           {(currentUser?.name || 'U').charAt(0).toUpperCase()}
                         </div>
                       )}
-                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white"></span>
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900"></span>
                     </div>
 
                     <div className="hidden sm:flex flex-col pr-1">
-                      <span className="text-xs font-bold text-slate-900 group-hover:text-orange-600 transition-colors leading-tight">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors leading-tight">
                         {currentUser?.name ? currentUser.name.split(' ')[0] : 'Account'}
                       </span>
-                      <span className="text-[10px] font-semibold text-stone-500 leading-none">
+                      <span className="text-[10px] font-semibold text-stone-500 dark:text-stone-400 leading-none">
                         {currentUser?.role === 'admin' || currentUser?.role === 'staff' ? 'Staff Desk' : (currentUser?.rollNo || 'Student')}
                       </span>
                     </div>
 
-                    <ChevronDown className={`w-3.5 h-3.5 text-stone-400 group-hover:text-slate-700 transition-transform hidden sm:block ${
+                    <ChevronDown className={`w-3.5 h-3.5 text-stone-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-transform hidden sm:block ${
                       profileDropdownOpen ? 'rotate-180' : ''
                     }`} />
                   </button>
 
-                  {/* Profile Dropdown */}
+                  {/* Profile Menu Dropdown */}
                   {profileDropdownOpen && (
-                    <div className="absolute right-0 mt-2.5 w-72 bg-white rounded-2xl shadow-2xl border border-stone-200 py-2 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 text-xs">
-                      
-                      <div className="px-4 py-3.5 border-b border-stone-100 bg-gradient-to-br from-stone-50 to-orange-50/20">
+                    <div className="absolute right-0 mt-2.5 w-72 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-stone-200 dark:border-slate-800 py-2 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 text-xs">
+                      <div className="px-4 py-3.5 border-b border-stone-100 dark:border-slate-800 bg-gradient-to-br from-stone-50 to-orange-50/20 dark:from-slate-800/80 dark:to-orange-950/20">
                         <div className="flex items-center gap-3">
-                          <div className="w-11 h-11 rounded-full overflow-hidden ring-2 ring-orange-500/20 shadow-xs shrink-0 bg-stone-200 flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-orange-500/20 shadow-xs shrink-0 bg-stone-200 dark:bg-slate-700 flex items-center justify-center">
                             {currentUser?.avatar ? (
                               <img
                                 src={currentUser.avatar}
@@ -353,14 +306,14 @@ export const Navbar = () => {
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <h4 className="font-extrabold text-slate-900 text-sm truncate">
+                            <h4 className="font-extrabold text-slate-900 dark:text-white text-sm truncate">
                               {currentUser?.name || 'Verified Member'}
                             </h4>
-                            <div className="text-[11px] text-stone-500 truncate">
-                              ID: <strong className="font-mono text-slate-800">{currentUser?.rollNo || 'N/A'}</strong>
+                            <div className="text-[11px] text-stone-500 dark:text-stone-400 truncate">
+                              ID: <strong className="font-mono text-slate-800 dark:text-slate-200">{currentUser?.rollNo || 'N/A'}</strong>
                             </div>
-                            <div className="text-[10px] font-bold text-emerald-700 flex items-center gap-1 mt-0.5">
-                              <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                            <div className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
+                              <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                               <span>{currentUser?.role === 'admin' || currentUser?.role === 'staff' ? 'Staff Security Officer' : 'Verified Campus Student'}</span>
                             </div>
                           </div>
@@ -373,10 +326,10 @@ export const Navbar = () => {
                             setShowProfileModal(true);
                             setProfileDropdownOpen(false);
                           }}
-                          className="w-full text-left px-3 py-2 rounded-xl text-slate-700 hover:bg-stone-50 font-semibold flex items-center justify-between transition-colors"
+                          className="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-stone-50 dark:hover:bg-slate-800 font-semibold flex items-center justify-between transition-colors"
                         >
                           <div className="flex items-center gap-2.5">
-                            <User className="w-4 h-4 text-orange-600" />
+                            <User className="w-4 h-4 text-orange-600 dark:text-orange-400" />
                             <span>My Profile & Avatar</span>
                           </div>
                           <ArrowRight className="w-3.5 h-3.5 text-stone-400" />
@@ -387,10 +340,10 @@ export const Navbar = () => {
                             setCurrentView('dashboard');
                             setProfileDropdownOpen(false);
                           }}
-                          className="w-full text-left px-3 py-2 rounded-xl text-slate-700 hover:bg-stone-50 font-semibold flex items-center justify-between transition-colors"
+                          className="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-stone-50 dark:hover:bg-slate-800 font-semibold flex items-center justify-between transition-colors"
                         >
                           <div className="flex items-center gap-2.5">
-                            <Package className="w-4 h-4 text-indigo-600" />
+                            <LayoutDashboard className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                             <span>Student Dashboard</span>
                           </div>
                           <ArrowRight className="w-3.5 h-3.5 text-stone-400" />
@@ -401,46 +354,18 @@ export const Navbar = () => {
                             setCurrentView('campus-issues');
                             setProfileDropdownOpen(false);
                           }}
-                          className="w-full text-left px-3 py-2 rounded-xl text-slate-700 hover:bg-stone-50 font-semibold flex items-center justify-between transition-colors"
+                          className="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-stone-50 dark:hover:bg-slate-800 font-semibold flex items-center justify-between transition-colors"
                         >
                           <div className="flex items-center gap-2.5">
-                            <Wrench className="w-4 h-4 text-blue-600" />
+                            <Wrench className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             <span>Campus Issues Tracker</span>
                           </div>
-                          <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-bold">New</span>
+                          <span className="text-[10px] bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full font-bold">Hub</span>
                         </button>
-
-                        <button
-                          onClick={() => {
-                            setCurrentView('report-lost');
-                            setProfileDropdownOpen(false);
-                          }}
-                          className="w-full text-left px-3 py-2 rounded-xl text-slate-700 hover:bg-stone-50 font-semibold flex items-center justify-between transition-colors"
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <Package className="w-4 h-4 text-rose-600" />
-                            <span>Report Lost Belonging</span>
-                          </div>
-                        </button>
-
-                        {(currentUser?.role === 'admin' || currentUser?.role === 'staff') && (
-                          <button
-                            onClick={() => {
-                              setCurrentView('admin');
-                              setProfileDropdownOpen(false);
-                            }}
-                            className="w-full text-left px-3 py-2 rounded-xl text-slate-700 hover:bg-stone-50 font-semibold flex items-center justify-between transition-colors"
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <Lock className="w-4 h-4 text-amber-600" />
-                              <span>Security Staff Portal</span>
-                            </div>
-                          </button>
-                        )}
                       </div>
 
-                      <div className="px-4 py-2.5 border-t border-stone-100 bg-stone-50/50 flex items-center justify-between">
-                        <span className="text-[11px] text-stone-500 truncate max-w-[130px]" title={currentUser?.email}>
+                      <div className="px-4 py-2.5 border-t border-stone-100 dark:border-slate-800 bg-stone-50/50 dark:bg-slate-800/40 flex items-center justify-between">
+                        <span className="text-[11px] text-stone-500 dark:text-stone-400 truncate max-w-[130px]" title={currentUser?.email}>
                           {currentUser?.email}
                         </span>
                         <button
@@ -448,22 +373,21 @@ export const Navbar = () => {
                             logout();
                             setProfileDropdownOpen(false);
                           }}
-                          className="text-rose-600 hover:text-rose-700 font-bold text-xs flex items-center gap-1 transition-colors"
+                          className="text-rose-600 dark:text-rose-400 hover:text-rose-700 font-bold text-xs flex items-center gap-1 transition-colors"
                         >
                           <LogOut className="w-3.5 h-3.5" />
                           <span>Sign Out</span>
                         </button>
                       </div>
-
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Mobile hamburger menu toggle */}
+              {/* Mobile Menu Hamburger Toggle */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-2 text-slate-600 hover:text-slate-900 rounded-md hover:bg-stone-100"
+                className="lg:hidden p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-md hover:bg-stone-100 dark:hover:bg-slate-800"
                 aria-label="Toggle mobile menu"
               >
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -475,139 +399,233 @@ export const Navbar = () => {
         </div>
       </div>
 
-      {/* Tier 2: Sub-Navigation Bar */}
-      <div className="hidden lg:block bg-white border-b border-stone-200/80">
+      {/* ===================================================================
+          SECOND ROW: Main Navigation (Exact Order) + Staff Portal + Election
+          =================================================================== */}
+      <div className="hidden lg:block bg-white dark:bg-slate-900 border-b border-stone-200/80 dark:border-slate-800 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex items-center gap-6 h-11 text-xs font-semibold text-slate-700">
-            {navItems.map((item) => {
-              const isActive = currentView === item.id;
-              return (
+          <nav className="flex items-center h-12 text-xs font-semibold text-slate-700 dark:text-slate-200">
+            
+            {/* 1 to 5: Main Navigation Items (Horizontal alignment) */}
+            <div className="flex items-center gap-6">
+              {mainNavItems.map((item) => {
+                const IconComponent = item.icon;
+                const isActive = currentView === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setCurrentView(item.id)}
+                    className={`flex items-center gap-2 py-3 relative transition-colors ${
+                      isActive 
+                        ? 'text-orange-600 dark:text-orange-400 font-bold' 
+                        : 'hover:text-slate-950 dark:hover:text-white text-slate-600 dark:text-slate-300'
+                    }`}
+                  >
+                    <IconComponent className={`w-4 h-4 ${isActive ? 'text-orange-600 dark:text-orange-400' : 'text-stone-400 dark:text-slate-500'}`} />
+                    <span>{item.label}</span>
+                    {isActive && (
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-600 dark:bg-orange-500 rounded-t-full" />
+                    )}
+                  </button>
+                );
+              })}
+
+              {/* 6. Staff Portal Dropdown (Campus Desks & Security Desk) */}
+              <div className="relative" ref={staffRef}>
                 <button
-                  key={item.id}
-                  onClick={() => setCurrentView(item.id)}
-                  className={`flex items-center gap-1 py-2 relative transition-colors ${
-                    isActive 
-                      ? 'text-orange-600 font-bold' 
-                      : 'hover:text-slate-950 text-slate-600'
+                  onClick={() => setStaffDropdownOpen(!staffDropdownOpen)}
+                  className={`flex items-center gap-1.5 py-3 relative transition-colors ${
+                    currentView === 'admin' || staffDropdownOpen
+                      ? 'text-orange-600 dark:text-orange-400 font-bold'
+                      : 'hover:text-slate-950 dark:hover:text-white text-slate-600 dark:text-slate-300'
                   }`}
+                  aria-expanded={staffDropdownOpen}
                 >
-                  <span>{item.label}</span>
-                  {item.hasDropdown && (
-                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isActive ? 'rotate-180 text-orange-600' : 'text-stone-400'}`} />
-                  )}
-                  {item.badge && (
-                    <span className="ml-1 px-1.5 py-0.2 text-[9px] font-bold bg-amber-100 text-amber-800 rounded">
-                      {item.badge}
-                    </span>
-                  )}
-                  {isActive && (
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-600 rounded-t-full" />
+                  <Briefcase className={`w-4 h-4 ${currentView === 'admin' ? 'text-orange-600 dark:text-orange-400' : 'text-stone-400 dark:text-slate-500'}`} />
+                  <span>Staff Portal</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${staffDropdownOpen ? 'rotate-180 text-orange-600 dark:text-orange-400' : 'text-stone-400 dark:text-slate-500'}`} />
+                  {currentView === 'admin' && (
+                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-600 dark:bg-orange-500 rounded-t-full" />
                   )}
                 </button>
-              );
-            })}
 
-            {/* Quick Action shortcut pills */}
-            <div className="ml-auto flex items-center gap-2 text-xs">
+                {/* Staff Portal Dropdown Menu */}
+                {staffDropdownOpen && (
+                  <div className="absolute left-0 mt-1 w-64 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-stone-200 dark:border-slate-800 py-1.5 z-50 animate-in fade-in slide-in-from-top-1">
+                    <button
+                      onClick={() => {
+                        setShowSecurityHubsModal(true);
+                        setStaffDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-3.5 py-2.5 hover:bg-stone-50 dark:hover:bg-slate-800 transition-colors flex items-start gap-2.5 group"
+                    >
+                      <MapPin className="w-4 h-4 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400">
+                          Campus Desks
+                        </div>
+                        <div className="text-[11px] text-stone-500 dark:text-stone-400">
+                          Official custody points & proctor desks
+                        </div>
+                      </div>
+                    </button>
+
+                    <div className="my-1 border-t border-stone-100 dark:border-slate-800" />
+
+                    <button
+                      onClick={() => {
+                        setCurrentView('admin');
+                        setStaffDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-3.5 py-2.5 hover:bg-stone-50 dark:hover:bg-slate-800 transition-colors flex items-start gap-2.5 group"
+                    >
+                      <Lock className="w-4 h-4 text-slate-700 dark:text-slate-300 shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 flex items-center justify-between">
+                          <span>Security Desk</span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-900 dark:bg-slate-700 text-white">
+                            Staff
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-stone-500 dark:text-stone-400">
+                          Guard duty authorization & claims review
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Action Area of Row 2: Election Coming Soon Button */}
+            <div className="ml-auto flex items-center">
               <button
-                onClick={() => setCurrentView('report-lost')}
-                className="px-2.5 py-1 text-[11px] font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-md transition-colors border border-rose-200/60"
+                onClick={() => setShowCollegeElectionModal(true)}
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 border border-amber-200/90 dark:border-amber-800/80 hover:bg-amber-100 dark:hover:bg-amber-900/60 hover:border-amber-300 transition-all shadow-2xs group"
+                title="Student Council Election System — Coming Soon"
               >
-                + Lost Something?
-              </button>
-              <button
-                onClick={() => setCurrentView('report-found')}
-                className="px-2.5 py-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-md transition-colors border border-emerald-200/60"
-              >
-                + Found an Item?
+                <Vote className="w-4 h-4 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform" />
+                <span>Election Coming Soon</span>
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
               </button>
             </div>
+
           </nav>
         </div>
       </div>
 
-      {/* Mobile Drawer Menu */}
+      {/* ===================================================================
+          MOBILE DRAWER MENU: Responsive, clean, space-efficient
+          =================================================================== */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-white border-b border-stone-200 px-4 pt-3 pb-6 space-y-3 animate-in fade-in slide-in-from-top-2">
-          {/* Mobile Search */}
-          <form onSubmit={(e) => { handleSearchSubmit(e); setMobileMenuOpen(false); }}>
-            <div className="relative">
-              <Search className="w-4 h-4 text-stone-400 absolute left-3 top-3 pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search items, tags, places..."
-                className="w-full pl-9 pr-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:border-orange-500 font-medium"
-              />
-            </div>
-          </form>
-
-          {/* Assistant & Election Quick Buttons for Mobile */}
-          <div className="grid grid-cols-2 gap-2 pt-1">
+        <div className="lg:hidden bg-white dark:bg-slate-900 border-b border-stone-200 dark:border-slate-800 px-4 pt-3 pb-6 space-y-3 animate-in fade-in slide-in-from-top-2">
+          
+          {/* Quick Action Top Bar for Mobile */}
+          <div className="flex items-center justify-between pb-2 border-b border-stone-100 dark:border-slate-800">
             <button
               onClick={() => {
-                setShowAIAssistantModal(true);
+                setCurrentView('campus-issues');
                 setMobileMenuOpen(false);
               }}
-              className="py-2 px-3 bg-indigo-50 border border-indigo-200 rounded-xl text-indigo-700 text-xs font-bold flex items-center justify-center gap-1.5"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800"
             >
-              <Bot className="w-4 h-4" />
-              <span>AI Assistant</span>
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+              <span>Campus Issues</span>
             </button>
+
             <button
-              onClick={() => {
-                setShowCollegeElectionModal(true);
-                setMobileMenuOpen(false);
-              }}
-              className="py-2 px-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs font-bold flex items-center justify-center gap-1.5"
+              onClick={toggleTheme}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-700 dark:text-slate-200 border border-stone-200 dark:border-slate-700"
             >
-              <Vote className="w-4 h-4" />
-              <span>Election Hub</span>
+              {theme === 'dark' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-slate-600" />}
+              <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
             </button>
           </div>
 
-          {/* Navigation Links */}
-          <div className="space-y-1 pt-1">
-            {navItems.map((item) => (
+          {/* Navigation Links in exact order */}
+          <div className="space-y-1">
+            {mainNavItems.map((item) => {
+              const IconComponent = item.icon;
+              const isActive = currentView === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setCurrentView(item.id);
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${
+                    isActive 
+                      ? 'bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400' 
+                      : 'text-slate-700 dark:text-slate-200 hover:bg-stone-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <IconComponent className="w-4 h-4 text-stone-400 dark:text-slate-400" />
+                    <span>{item.label}</span>
+                  </div>
+                  {isActive && <span className="w-1.5 h-1.5 rounded-full bg-orange-600"></span>}
+                </button>
+              );
+            })}
+
+            {/* Mobile Staff Portal Accordion */}
+            <div className="pt-1 border-t border-stone-100 dark:border-slate-800">
               <button
-                key={item.id}
+                onClick={() => setMobileStaffOpen(!mobileStaffOpen)}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-stone-50 dark:hover:bg-slate-800"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Briefcase className="w-4 h-4 text-stone-400 dark:text-slate-400" />
+                  <span>Staff Portal</span>
+                </div>
+                <ChevronDown className={`w-3.5 h-3.5 text-stone-400 transition-transform ${mobileStaffOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {mobileStaffOpen && (
+                <div className="pl-6 pr-2 py-1 space-y-1 bg-stone-50/70 dark:bg-slate-800/50 rounded-xl my-1">
+                  <button
+                    onClick={() => {
+                      setShowSecurityHubsModal(true);
+                      setMobileMenuOpen(false);
+                    }}
+                    className="w-full text-left py-2 px-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-orange-600 flex items-center gap-2"
+                  >
+                    <MapPin className="w-3.5 h-3.5 text-orange-600" />
+                    <span>Campus Desks</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCurrentView('admin');
+                      setMobileMenuOpen(false);
+                    }}
+                    className="w-full text-left py-2 px-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-orange-600 flex items-center gap-2"
+                  >
+                    <Lock className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
+                    <span>Security Desk (Staff Only)</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Mobile Election Coming Soon */}
+            <div className="pt-2">
+              <button
                 onClick={() => {
-                  setCurrentView(item.id);
+                  setShowCollegeElectionModal(true);
                   setMobileMenuOpen(false);
                 }}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold ${
-                  currentView === item.id 
-                    ? 'bg-orange-50 text-orange-600 font-bold' 
-                    : 'text-slate-700 hover:bg-stone-50'
-                }`}
+                className="w-full py-2.5 px-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-amber-900 dark:text-amber-200 text-xs font-bold flex items-center justify-center gap-2"
               >
-                <span>{item.label}</span>
-                {item.badge && (
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-amber-100 text-amber-800">
-                    {item.badge}
-                  </span>
-                )}
+                <Vote className="w-4 h-4 text-amber-600" />
+                <span>Election Coming Soon</span>
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
               </button>
-            ))}
-
-            <button
-              onClick={() => {
-                setShowInquiryModal(true);
-                setMobileMenuOpen(false);
-              }}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-stone-50"
-            >
-              <span className="flex items-center gap-2">
-                <span>Campus Help Desk</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              </span>
-              <span className="text-[10px] text-orange-600 font-bold">Inquiry</span>
-            </button>
+            </div>
           </div>
 
-          {/* Mobile Profile / Auth Card */}
-          <div className="pt-3 border-t border-stone-100">
+          {/* Auth State in Mobile Menu */}
+          <div className="pt-3 border-t border-stone-100 dark:border-slate-800">
             {!currentUser ? (
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -615,75 +633,47 @@ export const Navbar = () => {
                     setCurrentView('login');
                     setMobileMenuOpen(false);
                   }}
-                  className="py-2.5 px-3 text-center text-xs font-bold text-slate-800 border border-stone-200 rounded-xl bg-stone-50 hover:bg-stone-100 flex items-center justify-center gap-1.5 transition-colors"
+                  className="w-full py-2.5 text-center text-xs font-bold text-slate-700 dark:text-slate-200 bg-stone-100 dark:bg-slate-800 rounded-xl"
                 >
-                  <LogIn className="w-3.5 h-3.5 text-slate-600" />
-                  <span>Log In</span>
+                  Log In
                 </button>
                 <button
                   onClick={() => {
                     setCurrentView('register');
                     setMobileMenuOpen(false);
                   }}
-                  className="py-2.5 px-3 text-center text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-xl flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                  className="w-full py-2.5 text-center text-xs font-bold text-white bg-orange-600 rounded-xl"
                 >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>Sign Up</span>
+                  Sign Up
                 </button>
               </div>
             ) : (
-              <div className="space-y-2">
-                <div 
+              <div className="flex items-center justify-between p-3 bg-stone-50 dark:bg-slate-800 rounded-xl">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-orange-600 text-white font-bold text-xs flex items-center justify-center">
+                    {(currentUser?.name || 'U').charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white">{currentUser?.name}</div>
+                    <div className="text-[10px] text-stone-500 dark:text-stone-400">{currentUser?.email}</div>
+                  </div>
+                </div>
+                <button
                   onClick={() => {
-                    setShowProfileModal(true);
+                    logout();
                     setMobileMenuOpen(false);
                   }}
-                  className="p-3 bg-stone-50 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-stone-100 transition-colors"
+                  className="text-rose-600 dark:text-rose-400 text-xs font-bold"
                 >
-                  <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-orange-500/20 shrink-0 bg-stone-200 flex items-center justify-center">
-                    {currentUser?.avatar ? (
-                      <img
-                        src={currentUser.avatar}
-                        alt={currentUser.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-orange-500 to-amber-600 text-white font-extrabold flex items-center justify-center text-xs select-none">
-                        {(currentUser?.name || 'U').charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-slate-900 text-xs truncate">
-                      {currentUser?.name || 'Verified Member'}
-                    </div>
-                    <div className="text-[10px] text-stone-500">
-                      ID: {currentUser?.rollNo || 'N/A'} • {currentUser?.department || 'CSE'}
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-bold bg-orange-50 text-orange-700 border border-orange-200 px-2 py-0.5 rounded">
-                    Profile
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between px-1">
-                  <span className="text-[11px] text-stone-400 truncate max-w-[180px]">{currentUser?.email}</span>
-                  <button
-                    onClick={() => {
-                      logout();
-                      setMobileMenuOpen(false);
-                    }}
-                    className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 py-1"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span>Sign Out</span>
-                  </button>
-                </div>
+                  Sign Out
+                </button>
               </div>
             )}
           </div>
+
         </div>
       )}
+
     </header>
   );
 };
