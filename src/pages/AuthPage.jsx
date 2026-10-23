@@ -5,6 +5,8 @@ import {
   sendOtpToEmail, 
   verifyEmailOtp, 
   signInWithEmailPassword, 
+  signUpWithEmailPassword,
+  fetchProfileByUserId,
   fetchProfileByStudentId, 
   fetchProfileByEmail,
   upsertUserProfile,
@@ -220,7 +222,99 @@ export const AuthPage = ({ initialMode = 'login' }) => {
     }
   };
 
-  // Optional: Password Login for returning users
+  // Direct Password Registration (Instant, no email rate limits)
+  const handlePasswordRegister = async (e) => {
+    if (e) e.preventDefault();
+    setError('');
+    setInfoMessage('');
+
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setError('Please provide a valid college email address.');
+      return;
+    }
+    if (!fullName.trim()) {
+      setError('Please provide your full legal name.');
+      return;
+    }
+    if (!studentId.trim()) {
+      setError('College Student ID / Roll Number is required.');
+      return;
+    }
+    if (!password || password.length < 6) {
+      setError('Please enter a password of at least 6 characters.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Pre-check duplicate student ID and email in database
+      const existingStudent = await fetchProfileByStudentId(studentId.trim());
+      if (existingStudent) {
+        setError(`Student ID "${studentId}" is already registered. If this is your account, please sign in.`);
+        setIsLoading(false);
+        return;
+      }
+
+      const existingEmail = await fetchProfileByEmail(cleanEmail);
+      if (existingEmail) {
+        setError(`Email "${cleanEmail}" is already registered. Please sign in instead.`);
+        setIsLoading(false);
+        return;
+      }
+
+      const { data, error: signUpError } = await signUpWithEmailPassword(cleanEmail, password, {
+        full_name: fullName.trim(),
+        student_id: studentId.trim(),
+        department: department.trim(),
+        academic_year: academicYear.trim(),
+        role: 'student'
+      });
+
+      if (signUpError) throw signUpError;
+
+      const authUser = data?.user;
+      if (!authUser) {
+        throw new Error('Could not create account. Please check your credentials.');
+      }
+
+      let uploadedAvatarUrl = null;
+      if (avatarFile && authUser.id) {
+        try {
+          uploadedAvatarUrl = await uploadAvatar(avatarFile, authUser.id);
+        } catch (uploadErr) {
+          console.warn('Avatar upload note during registration:', uploadErr);
+        }
+      }
+
+      // Upsert profile in database
+      const userProfile = await upsertUserProfile({
+        userId: authUser.id,
+        studentId: studentId.trim(),
+        fullName: fullName.trim(),
+        department: department.trim(),
+        academicYear: academicYear.trim(),
+        email: cleanEmail,
+        avatarUrl: uploadedAvatarUrl,
+        role: 'student'
+      });
+
+      setCurrentUser(userProfile);
+      setUserRole('student');
+      addToast(`Welcome to CampusFind, ${userProfile.name}! Verified account created.`, 'success');
+      setCurrentView('dashboard');
+    } catch (regErr) {
+      console.error('Registration error:', regErr);
+      setError(
+        regErr.message || 
+        'Registration could not be completed. If "email rate limit" appears, disable "Confirm email" in Supabase Auth settings.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Password Login for returning users
   const handlePasswordLogin = async (e) => {
     e.preventDefault();
     setError('');
@@ -240,7 +334,23 @@ export const AuthPage = ({ initialMode = 'login' }) => {
       const { session } = await signInWithEmailPassword(cleanEmail, password);
       if (!session?.user) throw new Error('Could not establish session.');
 
-      const profile = await fetchProfileByEmail(cleanEmail);
+      let profile = await fetchProfileByUserId(session.user.id);
+      if (!profile) {
+        profile = await fetchProfileByEmail(cleanEmail);
+      }
+      if (!profile) {
+        const meta = session.user.user_metadata || {};
+        profile = await upsertUserProfile({
+          userId: session.user.id,
+          studentId: meta.student_id || `STU-${session.user.id.substring(0, 8).toUpperCase()}`,
+          fullName: meta.full_name || cleanEmail.split('@')[0],
+          department: meta.department || 'Computer Science & Engineering',
+          academicYear: meta.academic_year || 'Student',
+          email: cleanEmail,
+          role: 'student'
+        });
+      }
+
       if (profile) {
         setCurrentUser(profile);
         setUserRole(profile.role || 'student');
@@ -470,7 +580,7 @@ export const AuthPage = ({ initialMode = 'login' }) => {
                 </form>
               ) : mode === 'register' ? (
                 /* CONDITIONAL SCREEN 2: Student Registration Form */
-                <form onSubmit={handleSendOtp} className="space-y-4">
+                <form onSubmit={handlePasswordRegister} className="space-y-4">
                   
                   {/* Optional Avatar Selection Preview */}
                   <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-stone-50 border border-stone-200">
@@ -584,7 +694,32 @@ export const AuthPage = ({ initialMode = 'login' }) => {
                     </div>
                   </div>
 
-                  <div className="pt-2">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      Create Password <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Min. 6 characters"
+                        minLength={6}
+                        className="w-full pl-9 pr-9 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 p-0.5"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 space-y-2.5">
                     <button
                       type="submit"
                       disabled={isLoading}
@@ -593,15 +728,26 @@ export const AuthPage = ({ initialMode = 'login' }) => {
                       {isLoading ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Initiating Email Verification...</span>
+                          <span>Creating Student Account...</span>
                         </>
                       ) : (
                         <>
-                          <span>Send Supabase Email OTP</span>
+                          <span>Create Student Account (Instant)</span>
                           <ArrowRight className="w-4 h-4" />
                         </>
                       )}
                     </button>
+
+                    <div className="text-center pt-1">
+                      <button
+                        type="button"
+                        onClick={handleSendOtp}
+                        disabled={isLoading}
+                        className="text-[11px] font-semibold text-stone-500 hover:text-orange-600 transition-colors"
+                      >
+                        Prefer Email OTP? Click here to send verification code
+                      </button>
+                    </div>
                   </div>
                 </form>
               ) : useOtpFlow ? (
