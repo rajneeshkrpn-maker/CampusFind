@@ -17,6 +17,8 @@ import { ReportLostPage } from './pages/ReportLostPage';
 import { ReportFoundPage } from './pages/ReportFoundPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { AdminPage } from './pages/AdminPage';
+import { MasterAdminDashboard } from './pages/MasterAdminDashboard';
+import { StaffPortalPage } from './pages/StaffPortalPage';
 import { CampusIssuesPage } from './pages/CampusIssuesPage';
 import { AuthPage } from './pages/AuthPage';
 
@@ -49,6 +51,10 @@ const AppContent = () => {
       case 'dashboard':
         return <DashboardPage />;
       case 'admin':
+        return <MasterAdminDashboard />;
+      case 'staff':
+        return <StaffPortalPage />;
+      case 'security-desk':
         return <AdminPage />;
       case 'campus-issues':
         return <CampusIssuesPage />;

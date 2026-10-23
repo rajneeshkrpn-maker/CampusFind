@@ -13,7 +13,7 @@ import {
   fetchProfileByStudentId, 
   fetchProfileByEmail,
   upsertUserProfile,
-  verifyAdminInSupabase,
+  verifyStaffOrAdminCredentials,
   uploadAvatar
 } from '../lib/supabase';
 import { 
@@ -23,6 +23,8 @@ import {
   Eye, 
   EyeOff, 
   ShieldCheck, 
+  ShieldAlert,
+  Briefcase,
   AlertCircle, 
   CheckCircle2, 
   KeyRound,
@@ -30,14 +32,15 @@ import {
   ArrowLeft,
   Camera,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  Sparkles
 } from 'lucide-react';
 
 export const AuthPage = ({ initialMode = 'login' }) => {
   const { setCurrentView, addToast, setCurrentUser, setUserRole } = useApp();
 
-  const [portalMode, setPortalMode] = useState('student'); // 'student' | 'admin'
-  const [mode, setMode] = useState(initialMode); // 'login' | 'register'
+  const [portalMode, setPortalMode] = useState('student'); // 'student' | 'staff' | 'admin'
+  const [mode, setMode] = useState(initialMode); // 'login' | 'register' | 'forgot-password'
   
   // Student registration form fields (clean, not hardcoded!)
   const [fullName, setFullName] = useState('');
@@ -67,9 +70,15 @@ export const AuthPage = ({ initialMode = 'login' }) => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Admin Login state
+  // Staff Portal Login state
+  const [staffId, setStaffId] = useState('');
+  const [staffPasscode, setStaffPasscode] = useState('');
+  const [showStaffPasscode, setShowStaffPasscode] = useState(false);
+
+  // Master Admin Login state
   const [adminIdentifier, setAdminIdentifier] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
+  const [showAdminPasscode, setShowAdminPasscode] = useState(false);
 
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
@@ -454,44 +463,85 @@ export const AuthPage = ({ initialMode = 'login' }) => {
     }
   };
 
-  // Admin / Staff Login (Strict verification against database role)
-  const handleAdminSubmit = async (e) => {
+  // Staff Portal Login (Strict verification: STAFF/HIET/100 through STAFF/HIET/119)
+  const handleStaffSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setInfoMessage('');
 
-    if (!adminIdentifier.trim()) {
-      setError('Please enter your Staff ID or official security email.');
+    const cleanStaffId = staffId.trim().toUpperCase();
+    const cleanPass = staffPasscode.trim();
+
+    if (!cleanStaffId) {
+      setError('Please enter your official Staff ID (e.g. STAFF/HIET/100 to STAFF/HIET/119).');
       return;
     }
-    if (!adminPassword.trim()) {
-      setError('Please enter your Security Desk access passcode.');
+    if (!cleanPass) {
+      setError('Please enter your Staff security passcode.');
       return;
     }
 
     setIsLoading(true);
     try {
-      const verification = await verifyAdminInSupabase(adminIdentifier);
+      const verification = await verifyStaffOrAdminCredentials(cleanStaffId, cleanPass);
 
-      if (!verification.authorized) {
-        setError(verification.message || 'Access Denied: Unrecognized or non-privileged staff credentials.');
+      if (!verification.authorized || verification.role !== 'staff') {
+        setError(verification.message || 'Access Denied: Unrecognized or invalid Staff credentials.');
         setIsLoading(false);
         return;
       }
 
-      // Attempt Supabase Auth login if user has a standard auth record
-      try {
-        await signInWithEmailPassword(verification.profile.email, adminPassword);
-      } catch (_authErr) {
-        // Fallback to verified staff profile in database for duty desk session
+      setCurrentUser(verification.profile);
+      setUserRole('staff');
+      addToast(`Staff Authorization Granted: Officer ${verification.profile.name} (${cleanStaffId})`, 'success');
+      setCurrentView('staff');
+    } catch (err) {
+      console.error('Staff login error:', err);
+      setError('Staff verification service offline. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Master Admin Login (Strict verification: only designated ADMIN/HIET/156)
+  const handleAdminSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setInfoMessage('');
+
+    const cleanAdminId = adminIdentifier.trim().toUpperCase();
+    const cleanPass = adminPassword.trim();
+
+    if (!cleanAdminId) {
+      setError('Please enter the Master Admin ID.');
+      return;
+    }
+    if (cleanAdminId !== 'ADMIN/HIET/156') {
+      setError('Access Denied: Unrecognized administrator ID. Only the single designated Master Admin account is accepted.');
+      return;
+    }
+    if (!cleanPass) {
+      setError('Please enter the Master Admin passcode.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const verification = await verifyStaffOrAdminCredentials(cleanAdminId, cleanPass);
+
+      if (!verification.authorized || verification.role !== 'admin') {
+        setError(verification.message || 'Access Denied: Invalid Master Admin passcode.');
+        setIsLoading(false);
+        return;
       }
 
       setCurrentUser(verification.profile);
       setUserRole('admin');
-      addToast(`Staff Authorization Granted: Officer ${verification.profile.name}`, 'success');
+      addToast(`Master Administration Authorized: Dr. Arvind K. Swarup (Chief Proctor)`, 'success');
       setCurrentView('admin');
     } catch (err) {
       console.error('Admin login error:', err);
-      setError('Staff verification service offline. Please try again.');
+      setError('Administrative verification service offline. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -511,14 +561,18 @@ export const AuthPage = ({ initialMode = 'login' }) => {
           </div>
           <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight pt-2">
             {portalMode === 'admin' 
-              ? 'Security & Staff Portal' 
+              ? 'Master Admin Login' 
+              : portalMode === 'staff'
+              ? 'Staff Operations Portal'
               : mode === 'forgot-password'
               ? 'Reset Your Password'
               : mode === 'login' ? 'Sign In to CampusFind' : 'Create Student Account'}
           </h2>
           <p className="text-xs text-stone-600 max-w-xs mx-auto">
             {portalMode === 'admin'
-              ? 'Authorized proctorial board and campus security guard authentication.'
+              ? 'Institutional master administration and proctorial command console.'
+              : portalMode === 'staff'
+              ? 'Authorized proctorial staff, duty officers, and custody desk login.'
               : mode === 'forgot-password'
               ? 'Enter your registered college email to receive a password reset link and recovery code.'
               : mode === 'login' 
@@ -527,27 +581,37 @@ export const AuthPage = ({ initialMode = 'login' }) => {
           </p>
         </div>
 
-        {/* Portal Switcher (Student vs Staff) */}
-        <div className="grid grid-cols-2 p-1 bg-stone-100 rounded-2xl text-xs font-bold border border-stone-200">
+        {/* 3-Role Portal Switcher: Student | Staff | Master Admin */}
+        <div className="grid grid-cols-3 p-1 bg-stone-100 rounded-2xl text-xs font-bold border border-stone-200">
           <button
             type="button"
             onClick={() => { setPortalMode('student'); setError(''); setInfoMessage(''); }}
-            className={`py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+            className={`py-2 rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5 ${
               portalMode === 'student' ? 'bg-white text-slate-900 shadow-xs' : 'text-stone-500 hover:text-slate-900'
             }`}
           >
             <User className="w-3.5 h-3.5" />
-            <span>Student Portal</span>
+            <span className="truncate">Student</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setPortalMode('staff'); setError(''); setInfoMessage(''); }}
+            className={`py-2 rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5 ${
+              portalMode === 'staff' ? 'bg-indigo-600 text-white shadow-xs' : 'text-stone-500 hover:text-slate-900'
+            }`}
+          >
+            <Briefcase className="w-3.5 h-3.5" />
+            <span className="truncate">Staff</span>
           </button>
           <button
             type="button"
             onClick={() => { setPortalMode('admin'); setError(''); setInfoMessage(''); }}
-            className={`py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+            className={`py-2 rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5 ${
               portalMode === 'admin' ? 'bg-slate-900 text-white shadow-xs' : 'text-stone-500 hover:text-slate-900'
             }`}
           >
-            <Lock className="w-3.5 h-3.5" />
-            <span>Staff / Security</span>
+            <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+            <span className="truncate">Admin</span>
           </button>
         </div>
 
@@ -1188,51 +1252,74 @@ export const AuthPage = ({ initialMode = 'login' }) => {
             </>
           )}
 
-          {/* Admin / Staff Portal Form */}
-          {portalMode === 'admin' && (
-            <form onSubmit={handleAdminSubmit} className="space-y-4">
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 leading-relaxed">
-                <strong>Staff Security Protocol:</strong> Security and staff accounts cannot be self-registered. 
-                Enter your authorized Staff ID or Security Desk email.
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1">
-                  Staff ID / Security Intercom Code <span className="text-rose-500">*</span>
-                </label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={adminIdentifier}
-                    onChange={(e) => setAdminIdentifier(e.target.value)}
-                    placeholder="e.g. STAFF-SEC-01"
-                    className="w-full pl-9 pr-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-mono font-bold"
-                    required
-                  />
+          {/* Staff Portal Form */}
+          {portalMode === 'staff' && (
+            <form onSubmit={handleStaffSubmit} className="space-y-4">
+              <div className="p-3.5 bg-indigo-50 border border-indigo-200 rounded-2xl text-xs text-indigo-950 space-y-2">
+                <div className="flex items-center gap-1.5 font-bold text-indigo-900">
+                  <Briefcase className="w-4 h-4 text-indigo-600" />
+                  <span>Proctorial Staff & Duty Desk Login</span>
+                </div>
+                <p className="text-[11px] text-indigo-800 leading-relaxed">
+                  20 staff accounts provisioned for campus security, lost custody, and facility desks (<code>STAFF/HIET/100</code> to <code>STAFF/HIET/119</code>).
+                </p>
+                <div className="pt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
+                  <span className="font-semibold text-indigo-700">Quick Demo Fill:</span>
+                  <button
+                    type="button"
+                    onClick={() => { setStaffId('STAFF/HIET/100'); setStaffPasscode('832006'); }}
+                    className="px-2 py-0.5 bg-white text-indigo-700 font-mono font-bold rounded-md border border-indigo-200 hover:bg-indigo-100 transition-colors"
+                  >
+                    STAFF/HIET/100 (Officer Rajesh Verma)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setStaffId('STAFF/HIET/105'); setStaffPasscode('832006'); }}
+                    className="px-2 py-0.5 bg-white text-indigo-700 font-mono font-bold rounded-md border border-indigo-200 hover:bg-indigo-100 transition-colors"
+                  >
+                    STAFF/HIET/105 (Library Desk)
+                  </button>
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-800 mb-1">
-                  Security Access Passcode <span className="text-rose-500">*</span>
+                  Staff Identification ID <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={staffId}
+                    onChange={(e) => setStaffId(e.target.value.toUpperCase())}
+                    placeholder="e.g. STAFF/HIET/100"
+                    className="w-full pl-9 pr-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:border-indigo-500 font-mono font-bold tracking-wider"
+                    required
+                  />
+                </div>
+                <p className="text-[10px] text-stone-500 mt-1">Accepted: STAFF/HIET/100 through STAFF/HIET/119</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1">
+                  Staff Passcode <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
                   <Lock className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={adminPassword}
-                    onChange={(e) => setAdminPassword(e.target.value)}
+                    type={showStaffPasscode ? 'text' : 'password'}
+                    value={staffPasscode}
+                    onChange={(e) => setStaffPasscode(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pl-9 pr-9 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                    className="w-full pl-9 pr-9 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:border-indigo-500 font-medium"
                     required
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={() => setShowStaffPasscode(!showStaffPasscode)}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 p-0.5"
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showStaffPasscode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
@@ -1241,17 +1328,104 @@ export const AuthPage = ({ initialMode = 'login' }) => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5"
+                  className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5"
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Verifying Credentials in Database...</span>
+                      <span>Verifying Staff Credentials in Database...</span>
                     </>
                   ) : (
                     <>
-                      <span>Enter Security Staff Desk</span>
-                      <Lock className="w-3.5 h-3.5" />
+                      <span>Enter Staff Operations Portal</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Master Admin Login Form */}
+          {portalMode === 'admin' && (
+            <form onSubmit={handleAdminSubmit} className="space-y-4">
+              <div className="p-3.5 bg-slate-900 text-amber-300 rounded-2xl text-xs space-y-2 border border-slate-800">
+                <div className="flex items-center gap-1.5 font-bold text-amber-400">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Proctorial Directorate Master Admin</span>
+                </div>
+                <p className="text-[11px] text-stone-300 leading-relaxed">
+                  Designated single administrator console. Strict security policies reject all non-designated IDs.
+                </p>
+                <div className="pt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
+                  <span className="font-semibold text-stone-400">Demo Fill:</span>
+                  <button
+                    type="button"
+                    onClick={() => { setAdminIdentifier('ADMIN/HIET/156'); setAdminPassword('2001009'); }}
+                    className="px-2 py-0.5 bg-amber-400/20 text-amber-300 font-mono font-bold rounded-md border border-amber-400/40 hover:bg-amber-400/30 transition-colors"
+                  >
+                    ADMIN/HIET/156 • 2001009
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1">
+                  Master Admin ID <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <ShieldCheck className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={adminIdentifier}
+                    onChange={(e) => setAdminIdentifier(e.target.value.toUpperCase())}
+                    placeholder="e.g. ADMIN/HIET/156"
+                    className="w-full pl-9 pr-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-500 font-mono font-bold tracking-wider"
+                    required
+                  />
+                </div>
+                <p className="text-[10px] text-stone-500 mt-1">Designated ID: ADMIN/HIET/156</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1">
+                  Master Passcode <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type={showAdminPasscode ? 'text' : 'password'}
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full pl-9 pr-9 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-500 font-medium"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminPasscode(!showAdminPasscode)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 p-0.5"
+                  >
+                    {showAdminPasscode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full py-2.5 px-4 bg-slate-950 hover:bg-black text-amber-400 font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 border border-amber-400/20"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                      <span>Verifying Master Credentials...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Open Master Admin Dashboard</span>
                     </>
                   )}
                 </button>

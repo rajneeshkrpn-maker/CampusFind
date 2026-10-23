@@ -335,6 +335,42 @@ export const Navbar = () => {
                           <ArrowRight className="w-3.5 h-3.5 text-stone-400" />
                         </button>
 
+                        {currentUser?.role === 'admin' && (
+                          <button
+                            onClick={() => {
+                              setCurrentView('admin');
+                              setProfileDropdownOpen(false);
+                            }}
+                            className="w-full text-left px-3 py-2 rounded-xl text-amber-900 dark:text-amber-300 bg-amber-50/80 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 font-bold flex items-center justify-between transition-colors border border-amber-200/60 dark:border-amber-800/60"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                              <span>Master Admin Console</span>
+                            </div>
+                            <span className="text-[9px] font-extrabold uppercase bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded">
+                              Admin
+                            </span>
+                          </button>
+                        )}
+
+                        {(currentUser?.role === 'staff' || currentUser?.role === 'admin') && (
+                          <button
+                            onClick={() => {
+                              setCurrentView('staff');
+                              setProfileDropdownOpen(false);
+                            }}
+                            className="w-full text-left px-3 py-2 rounded-xl text-indigo-900 dark:text-indigo-300 bg-indigo-50/80 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 font-bold flex items-center justify-between transition-colors border border-indigo-200/60 dark:border-indigo-800/60"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <Briefcase className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                              <span>Staff Operations Portal</span>
+                            </div>
+                            <span className="text-[9px] font-extrabold uppercase bg-indigo-600 text-white px-1.5 py-0.2 rounded">
+                              Duty
+                            </span>
+                          </button>
+                        )}
+
                         <button
                           onClick={() => {
                             setCurrentView('dashboard');
@@ -430,21 +466,21 @@ export const Navbar = () => {
                 );
               })}
 
-              {/* 6. Staff Portal Dropdown (Campus Desks & Security Desk) */}
+              {/* 6. Staff & Admin Portal Dropdown */}
               <div className="relative" ref={staffRef}>
                 <button
                   onClick={() => setStaffDropdownOpen(!staffDropdownOpen)}
                   className={`flex items-center gap-1.5 py-3 relative transition-colors ${
-                    currentView === 'admin' || staffDropdownOpen
+                    currentView === 'staff' || currentView === 'admin' || staffDropdownOpen
                       ? 'text-orange-600 dark:text-orange-400 font-bold'
                       : 'hover:text-slate-950 dark:hover:text-white text-slate-600 dark:text-slate-300'
                   }`}
                   aria-expanded={staffDropdownOpen}
                 >
-                  <Briefcase className={`w-4 h-4 ${currentView === 'admin' ? 'text-orange-600 dark:text-orange-400' : 'text-stone-400 dark:text-slate-500'}`} />
-                  <span>Staff Portal</span>
+                  <Briefcase className={`w-4 h-4 ${currentView === 'staff' || currentView === 'admin' ? 'text-orange-600 dark:text-orange-400' : 'text-stone-400 dark:text-slate-500'}`} />
+                  <span>Staff / Admin</span>
                   <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${staffDropdownOpen ? 'rotate-180 text-orange-600 dark:text-orange-400' : 'text-stone-400 dark:text-slate-500'}`} />
-                  {currentView === 'admin' && (
+                  {(currentView === 'staff' || currentView === 'admin') && (
                     <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-600 dark:bg-orange-500 rounded-t-full" />
                   )}
                 </button>
@@ -454,18 +490,21 @@ export const Navbar = () => {
                   <div className="absolute left-0 mt-1 w-64 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-stone-200 dark:border-slate-800 py-1.5 z-50 animate-in fade-in slide-in-from-top-1">
                     <button
                       onClick={() => {
-                        setShowSecurityHubsModal(true);
+                        setCurrentView('staff');
                         setStaffDropdownOpen(false);
                       }}
                       className="w-full text-left px-3.5 py-2.5 hover:bg-stone-50 dark:hover:bg-slate-800 transition-colors flex items-start gap-2.5 group"
                     >
-                      <MapPin className="w-4 h-4 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
-                      <div>
-                        <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400">
-                          Campus Desks
+                      <Briefcase className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 flex items-center justify-between">
+                          <span>Staff Operations Portal</span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-indigo-600 text-white">
+                            Staff
+                          </span>
                         </div>
                         <div className="text-[11px] text-stone-500 dark:text-stone-400">
-                          Official custody points & proctor desks
+                          20 Duty Desks, assigned tickets & claims
                         </div>
                       </div>
                     </button>
@@ -479,16 +518,36 @@ export const Navbar = () => {
                       }}
                       className="w-full text-left px-3.5 py-2.5 hover:bg-stone-50 dark:hover:bg-slate-800 transition-colors flex items-start gap-2.5 group"
                     >
-                      <Lock className="w-4 h-4 text-slate-700 dark:text-slate-300 shrink-0 mt-0.5" />
+                      <ShieldCheck className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                       <div className="flex-1">
-                        <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 flex items-center justify-between">
-                          <span>Security Desk</span>
-                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-900 dark:bg-slate-700 text-white">
-                            Staff
+                        <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 flex items-center justify-between">
+                          <span>Master Admin Console</span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-950 dark:bg-amber-400 text-amber-400 dark:text-slate-950">
+                            Chief
                           </span>
                         </div>
                         <div className="text-[11px] text-stone-500 dark:text-stone-400">
-                          Guard duty authorization & claims review
+                          Proctorial directorate & institutional analytics
+                        </div>
+                      </div>
+                    </button>
+
+                    <div className="my-1 border-t border-stone-100 dark:border-slate-800" />
+
+                    <button
+                      onClick={() => {
+                        setShowSecurityHubsModal(true);
+                        setStaffDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-3.5 py-2.5 hover:bg-stone-50 dark:hover:bg-slate-800 transition-colors flex items-start gap-2.5 group"
+                    >
+                      <MapPin className="w-4 h-4 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400">
+                          Campus Security Desks
+                        </div>
+                        <div className="text-[11px] text-stone-500 dark:text-stone-400">
+                          Official custody points & proctor desks
                         </div>
                       </div>
                     </button>
@@ -589,20 +648,30 @@ export const Navbar = () => {
                       setShowSecurityHubsModal(true);
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full text-left py-2 px-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-orange-600 flex items-center gap-2"
+                    className="w-full text-left py-2 px-2 text-xs font-bold text-indigo-700 dark:text-indigo-300 hover:text-indigo-800 flex items-center gap-2"
                   >
-                    <MapPin className="w-3.5 h-3.5 text-orange-600" />
-                    <span>Campus Desks</span>
+                    <Briefcase className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Staff Operations Portal</span>
                   </button>
                   <button
                     onClick={() => {
                       setCurrentView('admin');
                       setMobileMenuOpen(false);
                     }}
+                    className="w-full text-left py-2 px-2 text-xs font-bold text-amber-700 dark:text-amber-300 hover:text-amber-800 flex items-center gap-2"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Master Admin Console</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowSecurityHubsModal(true);
+                      setMobileMenuOpen(false);
+                    }}
                     className="w-full text-left py-2 px-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-orange-600 flex items-center gap-2"
                   >
-                    <Lock className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
-                    <span>Security Desk (Staff Only)</span>
+                    <MapPin className="w-3.5 h-3.5 text-orange-600" />
+                    <span>Campus Security Desks</span>
                   </button>
                 </div>
               )}
