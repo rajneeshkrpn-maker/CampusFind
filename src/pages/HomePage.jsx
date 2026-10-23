@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { HeroSection } from '../components/HeroSection';
 import { ItemCard } from '../components/ItemCard';
-import { CampusTourSection } from '../components/CampusTourSection';
 import { 
   Search, 
   ShieldCheck, 
@@ -451,10 +450,7 @@ export const HomePage = () => {
         </div>
       </section>
 
-      {/* 6. "Explore Campus in 360°" Section — Placed directly below the College Election card */}
-      <CampusTourSection />
-
-      {/* 7. "How It Works" Section (Report, Match, Recover) */}
+      {/* 6. "How It Works" Section (Report, Match, Recover) */}
       <section id="how-it-works" className="bg-stone-50/70 border-y border-stone-200 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-12">
