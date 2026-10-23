@@ -30,6 +30,9 @@ export const mapItemFromDb = (row) => {
     custodyLocation: row.custody_location,
     verificationQuestion: row.verification_question,
     claimCount: row.claim_count || 0,
+    isDuplicate: Boolean(row.is_duplicate),
+    duplicateOf: row.duplicate_of || null,
+    resolvedAt: row.resolved_at || null,
     createdAt: row.created_at
   };
 };
@@ -57,7 +60,10 @@ export const mapItemToDb = (item) => {
     identifying_marks: item.identifyingMarks,
     custody_location: item.custodyLocation,
     verification_question: item.verificationQuestion,
-    claim_count: item.claimCount || 0
+    claim_count: item.claimCount || 0,
+    is_duplicate: Boolean(item.isDuplicate),
+    duplicate_of: item.duplicateOf || null,
+    resolved_at: item.resolvedAt || null
   };
 };
 
@@ -77,6 +83,7 @@ export const mapClaimFromDb = (row) => {
     proofDescription: row.proof_description,
     status: row.status,
     adminNotes: row.admin_notes,
+    evidenceImage: row.evidence_image || null,
     submittedAt: row.submitted_at || new Date(row.created_at).toLocaleString(),
     createdAt: row.created_at
   };
@@ -97,7 +104,55 @@ export const mapClaimToDb = (claim) => {
     proof_description: claim.proofDescription,
     status: claim.status || 'pending',
     admin_notes: claim.adminNotes,
+    evidence_image: claim.evidenceImage || null,
     submitted_at: claim.submittedAt
+  };
+};
+
+/**
+ * Normalizes campus issue row from Supabase to frontend model
+ */
+export const mapCampusIssueFromDb = (row) => {
+  if (!row) return null;
+  return {
+    id: row.id,
+    title: row.title,
+    category: row.category,
+    description: row.description,
+    location: row.location,
+    image: row.image,
+    status: row.status || 'submitted',
+    reporterName: row.reporter_name,
+    reporterRoll: row.reporter_roll,
+    reporterEmail: row.reporter_email,
+    assignedTo: row.assigned_to,
+    resolutionNotes: row.resolution_notes,
+    resolvedBy: row.resolved_by,
+    resolvedAt: row.resolved_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+};
+
+/**
+ * Normalizes campus issue object for DB insertion
+ */
+export const mapCampusIssueToDb = (issue) => {
+  return {
+    id: issue.id,
+    title: issue.title,
+    category: issue.category,
+    description: issue.description,
+    location: issue.location,
+    image: issue.image || null,
+    status: issue.status || 'submitted',
+    reporter_name: issue.reporterName,
+    reporter_roll: issue.reporterRoll,
+    reporter_email: issue.reporterEmail,
+    assigned_to: issue.assignedTo || null,
+    resolution_notes: issue.resolutionNotes || null,
+    resolved_by: issue.resolvedBy || null,
+    resolved_at: issue.resolvedAt || null
   };
 };
 
@@ -131,16 +186,42 @@ export const insertItemToSupabase = async (item) => {
   return mapItemFromDb(data);
 };
 
-export const updateItemStatusInSupabase = async (itemId, newStatus) => {
+export const updateItemStatusInSupabase = async (itemId, newStatus, extraFields = {}) => {
+  const updatePayload = { 
+    status: newStatus,
+    ...extraFields
+  };
+  if (newStatus === 'recovered' && !extraFields.resolved_at) {
+    updatePayload.resolved_at = new Date().toISOString();
+  }
+
   const { data, error } = await supabase
     .from('items')
-    .update({ status: newStatus })
+    .update(updatePayload)
     .eq('id', itemId)
     .select()
     .single();
 
   if (error) {
     console.error('Error updating item status in Supabase:', error);
+    throw error;
+  }
+  return mapItemFromDb(data);
+};
+
+export const flagItemDuplicateInSupabase = async (itemId, isDuplicate, duplicateOf = null) => {
+  const { data, error } = await supabase
+    .from('items')
+    .update({ 
+      is_duplicate: isDuplicate,
+      duplicate_of: duplicateOf
+    })
+    .eq('id', itemId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating duplicate flag in Supabase:', error);
     throw error;
   }
   return mapItemFromDb(data);
@@ -227,15 +308,91 @@ export const updateClaimStatusInSupabase = async (claimId, newStatus, adminNote 
     throw error;
   }
 
-  // If approved, update the item's status to 'recovered'
+  // If approved, update the item's status to 'recovered' and record timestamp
   if (newStatus === 'approved' && data?.item_id) {
     await supabase
       .from('items')
-      .update({ status: 'recovered' })
+      .update({ 
+        status: 'recovered',
+        resolved_at: new Date().toISOString()
+      })
       .eq('id', data.item_id);
+
+    // Also mark any competing claims for this item as closed/rejected to avoid conflict
+    try {
+      await supabase
+        .from('claims')
+        .update({ 
+          status: 'rejected',
+          admin_notes: `Claim concluded. Another verified claimant was approved for this item on ${new Date().toLocaleDateString()}.`
+        })
+        .eq('item_id', data.item_id)
+        .eq('status', 'pending');
+    } catch (claimConflictErr) {
+      console.warn('Could not auto-close competing claims:', claimConflictErr);
+    }
   }
 
   return mapClaimFromDb(data);
+};
+
+// ==================== CAMPUS ISSUES SERVICE ====================
+
+export const fetchCampusIssuesFromSupabase = async () => {
+  const { data, error } = await supabase
+    .from('campus_issues')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching campus issues from Supabase:', error);
+    return [];
+  }
+  return (data || []).map(mapCampusIssueFromDb);
+};
+
+export const insertCampusIssueToSupabase = async (issue) => {
+  const dbPayload = mapCampusIssueToDb(issue);
+  const { data, error } = await supabase
+    .from('campus_issues')
+    .insert([dbPayload])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error inserting campus issue to Supabase:', error);
+    throw error;
+  }
+  return mapCampusIssueFromDb(data);
+};
+
+export const updateCampusIssueStatusInSupabase = async (issueId, newStatus, resolutionNotes = '', assignedTo = null) => {
+  const updatePayload = {
+    status: newStatus,
+    updated_at: new Date().toISOString()
+  };
+  if (resolutionNotes) {
+    updatePayload.resolution_notes = resolutionNotes;
+  }
+  if (assignedTo) {
+    updatePayload.assigned_to = assignedTo;
+  }
+  if (newStatus === 'resolved' || newStatus === 'closed') {
+    updatePayload.resolved_at = new Date().toISOString();
+  }
+
+  const { data, error } = await supabase
+    .from('campus_issues')
+    .update(updatePayload)
+    .eq('id', issueId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating campus issue status in Supabase:', error);
+    throw error;
+  }
+  return mapCampusIssueFromDb(data);
 };
 
 // ==================== INQUIRIES SERVICE ====================
@@ -276,6 +433,32 @@ export const fetchNotificationsFromSupabase = async () => {
   return data || [];
 };
 
+export const insertNotificationToSupabase = async (notification) => {
+  const newNotif = {
+    id: notification.id || `notif-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    title: notification.title,
+    message: notification.message,
+    time: notification.time || 'Just now',
+    read: false,
+    type: notification.type || 'info',
+    user_id: notification.userId || null,
+    link_view: notification.linkView || null,
+    link_id: notification.linkId || null
+  };
+
+  const { data, error } = await supabase
+    .from('notifications')
+    .insert([newNotif])
+    .select()
+    .single();
+
+  if (error) {
+    console.warn('Could not insert notification into Supabase:', error);
+    return newNotif;
+  }
+  return data;
+};
+
 export const markNotificationReadInSupabase = async (notifId) => {
   const { error } = await supabase
     .from('notifications')
@@ -285,4 +468,82 @@ export const markNotificationReadInSupabase = async (notifId) => {
   if (error) {
     console.warn('Error marking notification read in Supabase:', error);
   }
+};
+
+// ==================== PROFILES & ROLE-BASED AUTH SERVICE ====================
+
+export const fetchProfileByStudentId = async (studentId) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('student_id', studentId.trim())
+    .maybeSingle();
+
+  if (error) {
+    console.warn('Error querying profile by student_id:', error);
+    return null;
+  }
+  return data;
+};
+
+export const fetchProfileByEmail = async (email) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .ilike('email', email.trim())
+    .maybeSingle();
+
+  if (error) {
+    console.warn('Error querying profile by email:', error);
+    return null;
+  }
+  return data;
+};
+
+export const registerStudentProfileInSupabase = async ({
+  studentId,
+  fullName,
+  department,
+  academicYear,
+  email
+}) => {
+  // Enforce unique student ID and email at the DB layer
+  const { data, error } = await supabase
+    .from('profiles')
+    .insert([{
+      student_id: studentId.trim(),
+      full_name: fullName.trim(),
+      department: department.trim(),
+      academic_year: academicYear.trim(),
+      email: email.trim().toLowerCase(),
+      role: 'student', // Client can NEVER elevate itself to admin!
+      is_approved: true
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating student profile in Supabase:', error);
+    throw error;
+  }
+  return data;
+};
+
+export const verifyAdminInSupabase = async (identifier) => {
+  // Checks if the user is a verified staff or admin in the trusted database
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .or(`student_id.eq.${identifier},email.ilike.${identifier}`)
+    .maybeSingle();
+
+  if (error || !data) {
+    return { authorized: false, message: 'Account not recognized in campus staff directory.' };
+  }
+
+  if (data.role !== 'admin' && data.role !== 'staff') {
+    return { authorized: false, message: 'Access Denied: Account is not authorized for staff or security portal access.' };
+  }
+
+  return { authorized: true, profile: data };
 };

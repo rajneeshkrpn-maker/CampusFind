@@ -7,16 +7,25 @@ import { ItemDetailsModal } from './components/ItemDetailsModal';
 import { ClaimModal } from './components/ClaimModal';
 import { CampusMapModal } from './components/CampusMapModal';
 import { InquiryModal } from './components/InquiryModal';
+import { CampusAIAssistantModal } from './components/CampusAIAssistantModal';
+import { CollegeElectionModal } from './components/CollegeElectionModal';
 import { HomePage } from './pages/HomePage';
 import { BrowsePage } from './pages/BrowsePage';
 import { ReportLostPage } from './pages/ReportLostPage';
 import { ReportFoundPage } from './pages/ReportFoundPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { AdminPage } from './pages/AdminPage';
+import { CampusIssuesPage } from './pages/CampusIssuesPage';
 import { AuthPage } from './pages/AuthPage';
 
 const AppContent = () => {
-  const { currentView } = useApp();
+  const { 
+    currentView, 
+    showAIAssistantModal, 
+    setShowAIAssistantModal,
+    showCollegeElectionModal,
+    setShowCollegeElectionModal
+  } = useApp();
 
   // Scroll to top upon page navigation
   useEffect(() => {
@@ -37,6 +46,8 @@ const AppContent = () => {
         return <DashboardPage />;
       case 'admin':
         return <AdminPage />;
+      case 'campus-issues':
+        return <CampusIssuesPage />;
       case 'login':
         return <AuthPage initialMode="login" />;
       case 'register':
@@ -48,7 +59,7 @@ const AppContent = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#fbfbfa] text-slate-800 font-sans selection:bg-orange-100 selection:text-orange-900">
-      {/* Top Navbar matching reference image */}
+      {/* Top Navbar */}
       <Navbar />
 
       {/* Main Page Content */}
@@ -64,6 +75,14 @@ const AppContent = () => {
       <ClaimModal />
       <CampusMapModal />
       <InquiryModal />
+      <CampusAIAssistantModal 
+        isOpen={showAIAssistantModal} 
+        onClose={() => setShowAIAssistantModal(false)} 
+      />
+      <CollegeElectionModal 
+        isOpen={showCollegeElectionModal} 
+        onClose={() => setShowCollegeElectionModal(false)} 
+      />
 
       {/* Toast Feedback Notifications */}
       <ToastContainer />

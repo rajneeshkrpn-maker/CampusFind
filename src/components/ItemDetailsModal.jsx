@@ -1,16 +1,22 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { findSuggestedMatches } from '../lib/matchEngine';
 import { 
   X, 
   MapPin, 
   Calendar, 
   ShieldCheck, 
   User, 
-  HelpCircle 
+  HelpCircle,
+  Sparkles,
+  ArrowRight,
+  Copy,
+  AlertTriangle
 } from 'lucide-react';
 
 export const ItemDetailsModal = () => {
   const { 
+    items,
     activeItemDetails, 
     setActiveItemDetails, 
     setActiveClaimItem,
@@ -23,6 +29,9 @@ export const ItemDetailsModal = () => {
   if (!activeItemDetails) return null;
 
   const item = activeItemDetails;
+
+  // Potential smart matches for this item
+  const suggestedMatches = findSuggestedMatches(item, items, 40).slice(0, 2);
 
   const handleSightingSubmit = (e) => {
     e.preventDefault();
@@ -43,7 +52,7 @@ export const ItemDetailsModal = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="relative bg-white rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl border border-stone-200 my-8">
+      <div className="relative bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl border border-stone-200 my-8">
         
         {/* Header Bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200 bg-stone-50/50">
@@ -57,10 +66,11 @@ export const ItemDetailsModal = () => {
             </span>
             <button
               onClick={copyRefId}
-              className="text-xs font-mono font-bold text-stone-500 bg-white px-2 py-0.5 rounded border border-stone-200 hover:text-slate-800"
+              className="text-xs font-mono font-bold text-stone-500 bg-white px-2 py-0.5 rounded border border-stone-200 hover:text-slate-800 flex items-center gap-1"
               title="Click to copy ID"
             >
-              {item.id}
+              <span>{item.id}</span>
+              <Copy className="w-3 h-3 text-stone-400" />
             </button>
           </div>
           <button
@@ -76,13 +86,13 @@ export const ItemDetailsModal = () => {
           
           {/* Main Visual & Title */}
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-6">
-            <div className="sm:col-span-6 rounded-xl overflow-hidden bg-stone-100 border border-stone-200 relative aspect-square sm:aspect-auto">
+            <div className="sm:col-span-6 rounded-2xl overflow-hidden bg-stone-100 border border-stone-200 relative aspect-square sm:aspect-auto">
               <img
                 src={item.image}
                 alt={item.title}
                 className="w-full h-full object-cover"
               />
-              <div className="absolute bottom-2 left-2 right-2 bg-black/50 backdrop-blur-xs px-2.5 py-1 rounded text-white text-[11px] font-medium flex items-center justify-between">
+              <div className="absolute bottom-2 left-2 right-2 bg-black/60 backdrop-blur-xs px-2.5 py-1 rounded-lg text-white text-[11px] font-medium flex items-center justify-between">
                 <span>Category: {item.category}</span>
                 <span>{item.date}</span>
               </div>
@@ -99,7 +109,7 @@ export const ItemDetailsModal = () => {
 
                 {/* Specific identifying hint */}
                 {item.identifyingMarks && (
-                  <div className="p-3 rounded-lg bg-amber-50/70 border border-amber-200/80 text-xs text-amber-900">
+                  <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/80 text-xs text-amber-900">
                     <span className="font-bold flex items-center gap-1 mb-0.5">
                       <HelpCircle className="w-3.5 h-3.5 text-amber-700" />
                       Identifying Characteristic:
@@ -124,7 +134,7 @@ export const ItemDetailsModal = () => {
           </div>
 
           {/* Details Metadata Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 rounded-xl bg-stone-50 border border-stone-200 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 rounded-2xl bg-stone-50 border border-stone-200 text-xs">
             <div>
               <div className="text-stone-400 mb-0.5 flex items-center gap-1 font-medium">
                 <MapPin className="w-3.5 h-3.5 text-orange-600" /> Location
@@ -141,13 +151,13 @@ export const ItemDetailsModal = () => {
               <div className="text-stone-400 mb-0.5 flex items-center gap-1 font-medium">
                 <User className="w-3.5 h-3.5 text-emerald-600" /> Reported By
               </div>
-              <div className="font-semibold text-slate-800">{item.reporterRole}</div>
+              <div className="font-semibold text-slate-800">{item.reporterRole || 'Campus Community'}</div>
             </div>
           </div>
 
           {/* Verification Challenge Notice */}
           {item.verificationQuestion && (
-            <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-2.5">
+            <div className="p-3.5 rounded-2xl bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-2.5">
               <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
               <div>
                 <span className="font-bold">Ownership Verification Required:</span>
@@ -155,6 +165,47 @@ export const ItemDetailsModal = () => {
                   To prevent fraudulent claims, the finder/proctor has recorded a security challenge: 
                   <em className="font-semibold"> "{item.verificationQuestion}"</em>
                 </p>
+              </div>
+            </div>
+          )}
+
+          {/* Potential Suggested Matches (Feature 1) */}
+          {suggestedMatches.length > 0 && (
+            <div className="p-4 bg-orange-50/60 border border-orange-200/80 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-orange-950">
+                  <Sparkles className="w-4 h-4 text-orange-600" />
+                  <span>Smart Match Engine Suggestions</span>
+                </div>
+                <span className="text-[10px] text-orange-700 font-semibold">
+                  {suggestedMatches.length} Lead(s)
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {suggestedMatches.map((m, mIdx) => (
+                  <div
+                    key={mIdx}
+                    className="p-3 bg-white rounded-xl border border-stone-200 flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-slate-900 truncate">{m.item.title}</span>
+                        <span className="text-[10px] font-bold text-orange-700 bg-orange-100 px-1.5 py-0.2 rounded shrink-0">
+                          {m.score}%
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-stone-500 truncate mt-0.5">
+                        📍 {m.item.location}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setActiveItemDetails(m.item)}
+                      className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-slate-700 text-[11px] font-bold rounded-lg transition-colors shrink-0"
+                    >
+                      Inspect →
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -187,12 +238,12 @@ export const ItemDetailsModal = () => {
                   value={sightingText}
                   onChange={(e) => setSightingText(e.target.value)}
                   placeholder="e.g., 'Saw this on 3rd floor library rack at 2 PM'..."
-                  className="flex-1 px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:border-blue-500"
+                  className="flex-1 px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-orange-500 font-medium"
                 />
                 <button
                   type="submit"
                   disabled={sightingSubmitted || !sightingText.trim()}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-semibold text-xs rounded-lg transition-colors whitespace-nowrap"
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-semibold text-xs rounded-xl transition-colors whitespace-nowrap"
                 >
                   {sightingSubmitted ? 'Reported!' : 'Submit Sighting'}
                 </button>

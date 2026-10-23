@@ -9,14 +9,20 @@ import {
   fetchItemsFromSupabase,
   insertItemToSupabase,
   updateItemStatusInSupabase,
+  flagItemDuplicateInSupabase,
   deleteItemFromSupabase,
   fetchClaimsFromSupabase,
   insertClaimToSupabase,
   updateClaimStatusInSupabase,
   submitInquiryToSupabase,
   fetchNotificationsFromSupabase,
-  markNotificationReadInSupabase
+  insertNotificationToSupabase,
+  markNotificationReadInSupabase,
+  fetchCampusIssuesFromSupabase,
+  insertCampusIssueToSupabase,
+  updateCampusIssueStatusInSupabase
 } from '../lib/supabase';
+import { findSuggestedMatches, detectDuplicateReports } from '../lib/matchEngine';
 
 const AppContext = createContext(null);
 
@@ -41,14 +47,26 @@ export const AppProvider = ({ children }) => {
     }
   });
 
+  // Campus Issues state
+  const [campusIssues, setCampusIssues] = useState(() => {
+    try {
+      const saved = localStorage.getItem('campusfind_issues');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   // Backend connection status & loading
   const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
   const [isLoadingBackend, setIsLoadingBackend] = useState(true);
 
-  // Current User: student account (Zaid Saifee)
-  const [userRole, setUserRole] = useState('student');
+  // Current User: student account (Zaid Saifee) or admin
+  const [userRole, setUserRole] = useState(() => {
+    return localStorage.getItem('campusfind_user_role') || 'student';
+  });
 
-  // Active view: 'home' | 'browse' | 'report-lost' | 'report-found' | 'dashboard' | 'admin' | 'login' | 'register'
+  // Active view: 'home' | 'browse' | 'report-lost' | 'report-found' | 'dashboard' | 'admin' | 'campus-issues' | 'login' | 'register'
   const [currentView, setCurrentView] = useState('home');
 
   // Search filter
@@ -62,6 +80,8 @@ export const AppProvider = ({ children }) => {
   const [activeClaimItem, setActiveClaimItem] = useState(null);
   const [showSecurityHubsModal, setShowSecurityHubsModal] = useState(false);
   const [showInquiryModal, setShowInquiryModal] = useState(false);
+  const [showAIAssistantModal, setShowAIAssistantModal] = useState(false);
+  const [showCollegeElectionModal, setShowCollegeElectionModal] = useState(false);
 
   // Notifications
   const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
@@ -69,17 +89,18 @@ export const AppProvider = ({ children }) => {
   // Toasts
   const [toasts, setToasts] = useState([]);
 
-  // Hydrate items, claims, and notifications from Supabase on load
+  // Hydrate items, claims, notifications, and campus issues from Supabase on load
   useEffect(() => {
     let isMounted = true;
 
     const loadSupabaseData = async () => {
       try {
         setIsLoadingBackend(true);
-        const [supabaseItems, supabaseClaims, supabaseNotifs] = await Promise.all([
+        const [supabaseItems, supabaseClaims, supabaseNotifs, supabaseIssues] = await Promise.all([
           fetchItemsFromSupabase().catch(() => null),
           fetchClaimsFromSupabase().catch(() => null),
-          fetchNotificationsFromSupabase().catch(() => null)
+          fetchNotificationsFromSupabase().catch(() => null),
+          fetchCampusIssuesFromSupabase().catch(() => null)
         ]);
 
         if (isMounted) {
@@ -94,6 +115,10 @@ export const AppProvider = ({ children }) => {
           }
           if (supabaseNotifs && supabaseNotifs.length > 0) {
             setNotifications(supabaseNotifs);
+          }
+          if (supabaseIssues && supabaseIssues.length > 0) {
+            setCampusIssues(supabaseIssues);
+            localStorage.setItem('campusfind_issues', JSON.stringify(supabaseIssues));
           }
         }
       } catch (err) {
@@ -130,6 +155,15 @@ export const AppProvider = ({ children }) => {
     }
   }, [claims]);
 
+  // Persist campus issues locally
+  useEffect(() => {
+    try {
+      localStorage.setItem('campusfind_issues', JSON.stringify(campusIssues));
+    } catch (e) {
+      // ignore
+    }
+  }, [campusIssues]);
+
   // Persist user role
   useEffect(() => {
     if (userRole) {
@@ -145,14 +179,14 @@ export const AppProvider = ({ children }) => {
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4000);
+    }, 4500);
   };
 
   const removeToast = (id) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Add Item (Saves directly to Supabase and updates UI immediately)
+  // Add Item with Duplicate Detection and Match Alerts
   const addItem = (itemData) => {
     const newItem = {
       ...itemData,
@@ -165,8 +199,26 @@ export const AppProvider = ({ children }) => {
       claimCount: 0,
       reporterName: DEMO_USERS[userRole]?.name || 'Student Reporter',
       reporterRole: DEMO_USERS[userRole]?.role || 'Student',
-      reporterRoll: DEMO_USERS[userRole]?.rollNo || '220132010045'
+      reporterRoll: DEMO_USERS[userRole]?.rollNo || '220132010045',
+      reporterEmail: DEMO_USERS[userRole]?.email || 'student@hitech.ac.in',
+      isDuplicate: false,
+      duplicateOf: null
     };
+
+    // FEATURE 3: Check for potential duplicate reports
+    const duplicates = detectDuplicateReports(newItem, items, 65);
+    if (duplicates.length > 0) {
+      const topDup = duplicates[0];
+      newItem.isDuplicate = true;
+      newItem.duplicateOf = topDup.item.id;
+      addToast(
+        `Notice: A similar ${newItem.type} report (#${topDup.item.id}) was already reported. It has been flagged for security review.`,
+        'info'
+      );
+    }
+
+    // FEATURE 1 & 4: Check for potential matches against opposite items
+    const matches = findSuggestedMatches(newItem, items, 50);
 
     // Update UI state immediately
     setItems((prev) => [newItem, ...prev]);
@@ -180,8 +232,23 @@ export const AppProvider = ({ children }) => {
         console.error('Failed to sync new item to Supabase:', err);
       });
 
+    // If matches found, dispatch automatic match alert notification
+    if (matches.length > 0) {
+      const topMatch = matches[0];
+      const matchNotif = {
+        title: 'Potential Match Alert!',
+        message: `A newly reported item "${newItem.title}" shares characteristics with "${topMatch.item.title}" (${topMatch.score}% match lead).`,
+        time: 'Just now',
+        type: 'match',
+        linkView: 'dashboard',
+        linkId: newItem.id
+      };
+      setNotifications((prev) => [matchNotif, ...prev]);
+      insertNotificationToSupabase(matchNotif);
+    }
+
     addToast(
-      `Success! ${itemData.type === 'lost' ? 'Lost' : 'Found'} report filed with ID: ${newItem.id} (Saved in Supabase)`,
+      `Success! ${itemData.type === 'lost' ? 'Lost' : 'Found'} report filed with Ref: ${newItem.id} (Saved in Supabase)`,
       'success'
     );
     return newItem;
@@ -189,15 +256,44 @@ export const AppProvider = ({ children }) => {
 
   // Update Item Status
   const updateItemStatus = (itemId, newStatus) => {
+    const extraFields = {};
+    if (newStatus === 'recovered') {
+      extraFields.resolved_at = new Date().toISOString();
+    }
+
     setItems((prev) =>
-      prev.map((item) => (item.id === itemId ? { ...item, status: newStatus } : item))
+      prev.map((item) =>
+        item.id === itemId
+          ? { ...item, status: newStatus, resolvedAt: extraFields.resolved_at || item.resolvedAt }
+          : item
+      )
     );
 
-    updateItemStatusInSupabase(itemId, newStatus).catch((err) => {
+    updateItemStatusInSupabase(itemId, newStatus, extraFields).catch((err) => {
       console.warn('Could not sync status update to Supabase:', err);
     });
 
     addToast(`Item ${itemId} status updated to: ${newStatus.toUpperCase()}`, 'info');
+  };
+
+  // Dismiss or Confirm Duplicate Report Flag
+  const resolveDuplicateFlag = (itemId, isDuplicate, duplicateOf = null) => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === itemId
+          ? { ...item, isDuplicate, duplicateOf }
+          : item
+      )
+    );
+
+    flagItemDuplicateInSupabase(itemId, isDuplicate, duplicateOf).catch((err) => {
+      console.warn('Could not update duplicate flag in Supabase:', err);
+    });
+
+    addToast(
+      isDuplicate ? `Report ${itemId} confirmed as duplicate.` : `Duplicate flag dismissed for ${itemId}.`,
+      'info'
+    );
   };
 
   // Delete / Withdraw Item
@@ -247,12 +343,26 @@ export const AppProvider = ({ children }) => {
         console.error('Failed to sync claim to Supabase:', err);
       });
 
+    // Notify staff of new incoming claim
+    const adminNotif = {
+      title: 'New Ownership Claim Submitted',
+      message: `Claim ${newClaimId} submitted for "${claimData.itemTitle}" by ${claimData.claimantName}. Pending review.`,
+      time: 'Just now',
+      type: 'claim',
+      linkView: 'admin',
+      linkId: newClaimId
+    };
+    setNotifications((prev) => [adminNotif, ...prev]);
+    insertNotificationToSupabase(adminNotif);
+
     addToast(`Claim request ${newClaimId} submitted and logged in Supabase!`, 'success');
     return newClaim;
   };
 
-  // Admin Claim Approval / Rejection
+  // Admin Claim Approval / Rejection with Competing Claim Safety
   const updateClaimStatus = (claimId, newStatus, adminNote = '') => {
+    const targetClaim = claims.find((c) => c.id === claimId);
+
     setClaims((prev) =>
       prev.map((c) => {
         if (c.id === claimId) {
@@ -262,16 +372,24 @@ export const AppProvider = ({ children }) => {
             adminNotes: adminNote || (newStatus === 'approved' ? 'Verified by Security Desk' : 'Insufficient verification')
           };
         }
+        // If approving this claim, auto-reject other competing claims for the same item to prevent conflicts
+        if (newStatus === 'approved' && targetClaim && c.itemId === targetClaim.itemId && c.id !== claimId) {
+          return {
+            ...c,
+            status: 'rejected',
+            adminNotes: `Claim concluded. Another verified claimant was approved for this item.`
+          };
+        }
         return c;
       })
     );
 
     // If approved, update item to 'recovered'
-    const targetClaim = claims.find((c) => c.id === claimId);
     if (targetClaim && newStatus === 'approved') {
+      const nowIso = new Date().toISOString();
       setItems((prev) =>
         prev.map((it) =>
-          it.id === targetClaim.itemId ? { ...it, status: 'recovered' } : it
+          it.id === targetClaim.itemId ? { ...it, status: 'recovered', resolvedAt: nowIso } : it
         )
       );
       addToast(`Claim ${claimId} Approved! Item marked as Recovered in Supabase.`, 'success');
@@ -279,9 +397,94 @@ export const AppProvider = ({ children }) => {
       addToast(`Claim ${claimId} marked as Rejected.`, 'info');
     }
 
+    // Persist claim status in Supabase
     updateClaimStatusInSupabase(claimId, newStatus, adminNote).catch((err) => {
       console.warn('Could not sync claim status to Supabase:', err);
     });
+
+    // Send in-app notification to the claimant
+    if (targetClaim) {
+      const claimantNotif = {
+        title: newStatus === 'approved' ? 'Claim Approved! 🎉' : 'Claim Status Update',
+        message:
+          newStatus === 'approved'
+            ? `Your claim for "${targetClaim.itemTitle}" was approved by Campus Security. You may collect your item at Main Gate 1 Desk.`
+            : `Your claim for "${targetClaim.itemTitle}" was marked as rejected: ${adminNote || 'Insufficient proof.'}`,
+        time: 'Just now',
+        type: newStatus === 'approved' ? 'success' : 'claim',
+        linkView: 'dashboard'
+      };
+      setNotifications((prev) => [claimantNotif, ...prev]);
+      insertNotificationToSupabase(claimantNotif);
+    }
+  };
+
+  // Campus Issue Reporting
+  const reportCampusIssue = async (issueData) => {
+    const newIssue = {
+      ...issueData,
+      id: `ISSUE-${Math.floor(1000 + Math.random() * 9000)}`,
+      status: 'submitted',
+      reporterName: DEMO_USERS[userRole]?.name || 'Student Reporter',
+      reporterRoll: DEMO_USERS[userRole]?.rollNo || '220132010045',
+      reporterEmail: DEMO_USERS[userRole]?.email || 'student@hitech.ac.in',
+      createdAt: new Date().toISOString()
+    };
+
+    setCampusIssues((prev) => [newIssue, ...prev]);
+
+    const saved = await insertCampusIssueToSupabase(newIssue);
+
+    const issueNotif = {
+      title: 'Facility Issue Logged',
+      message: `Your maintenance report "${newIssue.title}" was submitted to estate staff (ID: ${newIssue.id}).`,
+      time: 'Just now',
+      type: 'info',
+      linkView: 'campus-issues',
+      linkId: newIssue.id
+    };
+    setNotifications((prev) => [issueNotif, ...prev]);
+    insertNotificationToSupabase(issueNotif);
+
+    addToast(`Campus Issue ${newIssue.id} submitted and stored in Supabase!`, 'success');
+    return saved;
+  };
+
+  // Campus Issue Status Update (Staff / Admin)
+  const updateCampusIssueStatus = async (issueId, newStatus, resolutionNotes = '', assignedTo = null) => {
+    const targetIssue = campusIssues.find((i) => i.id === issueId);
+
+    setCampusIssues((prev) =>
+      prev.map((i) =>
+        i.id === issueId
+          ? {
+              ...i,
+              status: newStatus,
+              resolutionNotes: resolutionNotes || i.resolutionNotes,
+              assignedTo: assignedTo || i.assignedTo,
+              resolvedAt: (newStatus === 'resolved' || newStatus === 'closed') ? new Date().toISOString() : i.resolvedAt
+            }
+          : i
+      )
+    );
+
+    const updated = await updateCampusIssueStatusInSupabase(issueId, newStatus, resolutionNotes, assignedTo);
+
+    if (targetIssue) {
+      const notif = {
+        title: `Campus Issue ${newStatus.toUpperCase()}`,
+        message: `Facility report "${targetIssue.title}" status changed to ${newStatus.replace('_', ' ')}. ${resolutionNotes ? `Notes: ${resolutionNotes}` : ''}`,
+        time: 'Just now',
+        type: newStatus === 'resolved' ? 'success' : 'info',
+        linkView: 'campus-issues',
+        linkId: issueId
+      };
+      setNotifications((prev) => [notif, ...prev]);
+      insertNotificationToSupabase(notif);
+    }
+
+    addToast(`Issue ${issueId} status updated to ${newStatus.toUpperCase()}`, 'success');
+    return updated;
   };
 
   // Submit Inquiry (Saves to Supabase inquiries table)
@@ -308,14 +511,15 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // Reset to original data
+  // Reset to original sample data
   const resetDemoData = () => {
     localStorage.removeItem('campusfind_items');
     localStorage.removeItem('campusfind_claims');
+    localStorage.removeItem('campusfind_issues');
     setItems(INITIAL_ITEMS);
     setClaims(INITIAL_CLAIMS);
     setNotifications(INITIAL_NOTIFICATIONS);
-    addToast('Database view restored.', 'info');
+    addToast('Database demo state re-synchronized.', 'info');
   };
 
   // Mark notifications read
@@ -338,6 +542,7 @@ export const AppProvider = ({ children }) => {
       value={{
         items,
         claims,
+        campusIssues,
         userRole,
         currentUser,
         currentView,
@@ -358,6 +563,10 @@ export const AppProvider = ({ children }) => {
         setShowSecurityHubsModal,
         showInquiryModal,
         setShowInquiryModal,
+        showAIAssistantModal,
+        setShowAIAssistantModal,
+        showCollegeElectionModal,
+        setShowCollegeElectionModal,
         notifications,
         markNotificationRead,
         markAllNotificationsRead,
@@ -366,9 +575,12 @@ export const AppProvider = ({ children }) => {
         removeToast,
         addItem,
         updateItemStatus,
+        resolveDuplicateFlag,
         deleteItem,
         submitClaim,
         updateClaimStatus,
+        reportCampusIssue,
+        updateCampusIssueStatus,
         submitInquiry,
         switchUserRole,
         resetDemoData,
